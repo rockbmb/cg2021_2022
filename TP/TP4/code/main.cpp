@@ -17,10 +17,36 @@ using namespace std;
 float alfa = 0.0f, beta = 0.0f, radius = 5.0f;
 float raio = 1; 
 float height = 2;
-float sides = 128;
+float sides = 4;
 float camX, camY, camZ;
 int mode = GL_LINE;
-string drawing_mode = "vbo_no_index";
+
+enum DrawingMode {
+	immediate,
+	vbo_no_index,
+	vbo_index
+};
+
+DrawingMode drawing_mode = vbo_no_index;
+
+string dmToStr(DrawingMode dm) {
+	string str = "none";
+	switch (dm) {
+	case immediate:
+		str = "immediate";
+		break;
+	case vbo_no_index:
+	    str = "vbo_no_index";
+		break;
+	case vbo_index:
+		str = "vbo_index";
+		break;
+	default:
+		break;
+	}
+
+	return str;
+}
 
 int timebase;
 int timem;
@@ -28,30 +54,46 @@ float frames;
 float fps;
 char fps_counter[10];
 
+// Variable to count cylinder vertices in VBO mode (no index).
 GLuint cylinderVertexNum;
+// Vertex vector for VBO mode (no index).
 vector<float> vertexBuffer;
+// glGenBuffer will place a buffer object name for VBO mode (no index) in this variable.
 GLuint vertices;
 
+// Variable to count cylinder vertices in VBO mode (indexed).
+GLuint verticesIx;
+// glGenBuffer will place a buffer object name for VBO mode (indexed) in this variable.
+GLuint indices;
+// Index vector for VBO mode (no index).
+vector<unsigned int> indexBuffer;
+// Vertex vector for VBO mode (indexed).
+vector<float> vertexBufferIx;
+// Index count in VBO mode (indexed).
+unsigned int indexCount;
+
+// Helper struct, used to represent points in 3D space.
 struct Point {
 	float x;
 	float y;
 	float z;
 };
 
+// Draw a point using glVertex3f.
 void vertexHelper(Point p) {
 	glVertex3f(p.x, p.y, p.z);
 }
 
-void vertexVectorHelper(Point p) {
-	vertexBuffer.push_back(p.x);
-	vertexBuffer.push_back(p.y);
-	vertexBuffer.push_back(p.z);
+// Push a point into a vector reference.
+void vertexVectorHelper(vector<float> *v, Point p) {
+	v->push_back(p.x);
+	v->push_back(p.y);
+	v->push_back(p.z);
 }
 
 void writeCylinderVertices(float r, float height, int slices) {
 	cylinderVertexNum = 3 * slices + 6 * slices + 3 * slices;
-	vertexBuffer.resize(cylinderVertexNum*3, 0);
-	vertexBuffer.resize(0);
+	vertexBuffer.clear();
 
 	// put code to draw cylinder in here
 	float angle = 2 * M_PI;
@@ -80,23 +122,91 @@ void writeCylinderVertices(float r, float height, int slices) {
 		p4.z = r * cos(angle_high);
 		p4.y = 0;
 
-		float col1 = pow(sin(angle_low), 2);
-		float col2 = pow(cos(angle_low), 2);
-		vertexVectorHelper(top_center);
-		vertexVectorHelper(p2);
-		vertexVectorHelper(p1);
+		vertexVectorHelper(&vertexBuffer, top_center);
+		vertexVectorHelper(&vertexBuffer, p2);
+		vertexVectorHelper(&vertexBuffer, p1);
 
-		vertexVectorHelper(p1);
-		vertexVectorHelper(p2);
-		vertexVectorHelper(p3);
+		vertexVectorHelper(&vertexBuffer, p1);
+		vertexVectorHelper(&vertexBuffer, p2);
+		vertexVectorHelper(&vertexBuffer, p3);
 
-		vertexVectorHelper(p1);
-		vertexVectorHelper(p3);
-		vertexVectorHelper(p4);
+		vertexVectorHelper(&vertexBuffer, p1);
+		vertexVectorHelper(&vertexBuffer, p3);
+		vertexVectorHelper(&vertexBuffer, p4);
 
-		vertexVectorHelper(bottom_center);
-		vertexVectorHelper(p4);
-		vertexVectorHelper(p3);
+		vertexVectorHelper(&vertexBuffer, bottom_center);
+		vertexVectorHelper(&vertexBuffer, p4);
+		vertexVectorHelper(&vertexBuffer, p3);
+	}
+}
+
+// Versão com índices.
+void writeCylinderVerticesIndexed(float r, float height, int slices) {
+	indexCount = 3 * slices + 6 * slices + 3 * slices;
+	indexBuffer.clear();
+	vertexBufferIx.clear();
+
+	// put code to draw cylinder in here
+	float angle = 2 * M_PI;
+	float angle_low;
+	float angle_high;
+	Point top_center = { 0, height, 0};
+	Point bottom_center = { 0, 0, 0 };
+
+	// Which index of the vertex buffer we are on.
+	int k = 0;
+
+	vertexVectorHelper(&vertexBufferIx, top_center);
+	k++;
+	vertexVectorHelper(&vertexBufferIx, bottom_center);
+	k++;
+
+	Point p1, p2, p3, p4;
+	/* Note-se que este ciclo, ao contrário do modo VBO sem índice que só corre
+	slices vezes, este precisa correr slices + 1 vezes.
+	Está-se a trabalhar com índices de vértices, e não com conjuntos de 3 vértices
+	de cada vez.
+	*/
+	for (int i = 0; i <= slices; i++) {
+		angle_low = (i * angle) / slices;
+		angle_high = ((i + 1) * angle) / slices;
+		p1.x = r * sin(angle_high);
+		p1.z = r * cos(angle_high);
+		p1.y = height;
+
+		p2.x = r * sin(angle_low);
+		p2.z = r * cos(angle_low);
+		p2.y = height;
+
+		p3.x = r * sin(angle_low);
+		p3.z = r * cos(angle_low);
+		p3.y = 0;
+
+		p4.x = r * sin(angle_high);
+		p4.z = r * cos(angle_high);
+		p4.y = 0;
+
+		vertexVectorHelper(&vertexBufferIx, p1);
+		vertexVectorHelper(&vertexBufferIx, p2);
+		vertexVectorHelper(&vertexBufferIx, p3);
+		vertexVectorHelper(&vertexBufferIx, p4);
+		k += 4;
+
+		indexBuffer.push_back(0);
+		indexBuffer.push_back(k + 1);
+		indexBuffer.push_back(k);
+
+		indexBuffer.push_back(k);
+		indexBuffer.push_back(k + 1);
+		indexBuffer.push_back(k + 2);
+
+		indexBuffer.push_back(k);
+		indexBuffer.push_back(k + 2);
+		indexBuffer.push_back(k + 3);
+
+		indexBuffer.push_back(1);
+		indexBuffer.push_back(k + 3);
+		indexBuffer.push_back(k + 2);
 	}
 }
 
@@ -166,12 +276,35 @@ void init_vbo() {
 	glBufferData(GL_ARRAY_BUFFER, vertexBuffer.size() * sizeof(float), vertexBuffer.data(), GL_STATIC_DRAW);
 }
 
+void init_vbo_ix() {
+	writeCylinderVerticesIndexed(raio, height, sides);
+
+	glGenBuffers(1, &verticesIx);
+	glGenBuffers(1, &indices);
+
+	glBindBuffer(GL_ARRAY_BUFFER, verticesIx);
+	glBufferData(GL_ARRAY_BUFFER, vertexBufferIx.size() * sizeof(float), vertexBufferIx.data(), GL_STATIC_DRAW);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indexBuffer.size(), indexBuffer.data(), GL_STATIC_DRAW);
+}
+
 void update_vbo() {
 	// The vertex buffer is resized in this function.
 	writeCylinderVertices(raio, height, sides);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertices);
 	glBufferData(GL_ARRAY_BUFFER, vertexBuffer.size() * sizeof(float), vertexBuffer.data(), GL_STATIC_DRAW);
+}
+
+void update_vbo_ix() {
+	writeCylinderVerticesIndexed(raio, height, sides);
+
+	glBindBuffer(GL_ARRAY_BUFFER, verticesIx);
+	glBufferData(GL_ARRAY_BUFFER, vertexBufferIx.size() * sizeof(float), vertexBufferIx.data(), GL_STATIC_DRAW);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indexBuffer.size(), indexBuffer.data(), GL_STATIC_DRAW);
 }
 
 void spherical2Cartesian() {
@@ -210,11 +343,11 @@ void renderScene(void) {
 	frames++;
 	timem = glutGet(GLUT_ELAPSED_TIME);
 	if (timem - timebase > 1000) {
-		fps = frames*1000.0/(timem-timebase);
+		fps = frames*1000.0/(timem - timebase);
 		timebase = timem;
 		frames = 0;
-		snprintf(fps_counter, 10, "%f", fps);
-		glutSetWindowTitle(drawing_mode.c_str());
+		snprintf(fps_counter, 10, "%5.2f", fps);
+		glutSetWindowTitle((dmToStr(drawing_mode) + "; FPS: ").append(fps_counter).c_str());
 	}
 
 	// clear buffers
@@ -228,12 +361,25 @@ void renderScene(void) {
 
 	glColor3f(0.78f, 0.65f, 0.8f);
 
-	if (drawing_mode == "immediate") {
+	switch (drawing_mode) {
+	case immediate:
 		drawCylinder(1, 2, sides);
-	} else {
+		break;
+
+	case vbo_no_index:
 		glBindBuffer(GL_ARRAY_BUFFER, vertices);
 		glVertexPointer(3, GL_FLOAT, 0, 0);
 		glDrawArrays(GL_TRIANGLES, 0, cylinderVertexNum);
+		break;
+
+	case vbo_index:
+		glBindBuffer(GL_ARRAY_BUFFER, verticesIx);
+		glVertexPointer(3, GL_FLOAT, 0, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices);
+		glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
+		break;
+	default:
+		break;
 	}
 
 	// End of frame
@@ -247,14 +393,30 @@ void processKeys(unsigned char c, int xx, int yy) {
 	switch (c) {
 		case '+':
 			sides *= 2;
-			if (drawing_mode == "vbo_no_index") {
-				update_vbo();
+			switch(drawing_mode) {
+				case vbo_no_index:
+					update_vbo();
+					break;
+
+				case vbo_index:
+					update_vbo_ix();
+					break;
+				default:
+					break;
 			}
 			break;
 		case '-':
 			sides /= 2;
-			if (drawing_mode == "vbo_no_index") {
-				update_vbo();
+			switch(drawing_mode) {
+				case vbo_no_index:
+					update_vbo();
+					break;
+
+				case vbo_index:
+					update_vbo_ix();
+					break;
+				default:
+					break;
 			}
 			break;
 		case ',':
@@ -267,13 +429,21 @@ void processKeys(unsigned char c, int xx, int yy) {
 			mode = GL_LINE;
 			break;
 		case ' ':
-			if (drawing_mode == "immediate") {
-				update_vbo();
-				drawing_mode = "vbo_no_index";
-			} else {
-				drawing_mode = "immediate";
+			switch (drawing_mode) {
+				case immediate:
+					drawing_mode = vbo_no_index;
+					update_vbo();
+					break;
+				case vbo_no_index:
+					drawing_mode = vbo_index;
+					update_vbo_ix();
+					break;
+				case vbo_index:
+					drawing_mode = immediate;
+					break;
+				default:
+					break;
 			}
-			break;
 		default:
 			break;
 	}
@@ -323,7 +493,7 @@ void printInfo() {
 	printf("Version: %s\n", glGetString(GL_VERSION));
 
 	printf("\nUse Arrows to move the camera up/down and left/right\n");
-	printf("Page Up and Page Down control the distance from the camera to the origin");
+	printf("\nPage Up and Page Down control the distance from the camera to the origin\n");
 }
 
 
@@ -363,6 +533,7 @@ int main(int argc, char **argv) {
 	printInfo();
 
 	init_vbo();
+	init_vbo_ix();
 // enter GLUT's main cycle
 	glutMainLoop();
 	
