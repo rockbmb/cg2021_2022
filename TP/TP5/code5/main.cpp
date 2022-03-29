@@ -29,6 +29,12 @@ struct Color {
 	float b;
 };
 
+// Para movimento da câmara
+float alfaDelta = 0.0f;
+float betaDelta = 0.0f;
+int xOrigin = -1;
+int yOrigin = 0;
+
 float alfa = 0.0f, beta = 0.5f, radius = 100.0f;
 float camX, camY, camZ;
 
@@ -308,6 +314,43 @@ void processSpecialKeys(int key, int xx, int yy) {
 	spherical2Cartesian();
 	glutPostRedisplay();
 
+}
+
+void mouseMove(int x, int y) {
+
+	// this will only be true when the left button is down
+	if (xOrigin >= 0) {
+
+		// update deltaAngle
+		alfaDelta = (x - xOrigin) * 10.f;
+		betaDelta = (y - yOrigin) * 10.f;
+
+		// update camera's direction
+		beta += betaDelta;
+		alfa += alfaDelta;
+	}
+
+	spherical2Cartesian();
+	glutPostRedisplay();
+}
+
+void mouseButton(int button, int state, int x, int y) {
+
+	// only start motion if the left button is pressed
+	if (button == GLUT_LEFT_BUTTON) {
+
+		// when the button is released
+		if (state == GLUT_UP) {
+			//angle += deltaAngle;
+			xOrigin = -1;
+			yOrigin = -1;
+		}
+		// state = GLUT_DOWN
+		else  {
+			xOrigin = x;
+			yOrigin = y;
+		}
+	}
 }
 
 void printInfo() {
