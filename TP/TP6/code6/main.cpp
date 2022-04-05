@@ -80,8 +80,6 @@ void drawTerrain() {
     // colocar aqui o código de desnho do terreno usando VBOs com TRIANGLE_STRIPS
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
 	glVertexPointer(3, GL_FLOAT, 0, 0);
-	//glDrawArrays(GL_TRIANGLE_STRIP, imageWidth * 2 * 0, imageWidth * 2);
-	//glDrawArrays(GL_TRIANGLE_STRIP, imageWidth * 2 * 1, imageWidth * 2);
 	for (int i = 0; i < imageHeight - 1 ; i++) {
 		glDrawArrays(GL_TRIANGLE_STRIP, imageWidth * 2 * i, imageWidth * 2);
 	}
@@ -95,17 +93,14 @@ void renderScene(void) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glLoadIdentity();
-	gluLookAt(camX + movementX, camY, camZ + movementZ,
-		      0.0 + movementX, 0.0, 0.0 + movementZ,
+	gluLookAt(movementX + camX, camY, camZ + movementZ,
+		      movementX, 0, movementZ,
 			  0.0f,1.0f,0.0f);
 
 	glPolygonMode(GL_FRONT, GL_LINE);
 	glPushMatrix();
 	drawTerrain();
 	glPopMatrix();
-
-	// just so that it renders something before the terrain is built
-	// to erase when the terrain is ready
 
 // End of frame
 	glutSwapBuffers();
@@ -228,8 +223,8 @@ void init() {
 	// both should be equal to 256
 	// if not there was an error loading the image
 	// most likely the image could not be found
-	imageWidth = 8;//ilGetInteger(IL_IMAGE_WIDTH);
-	imageHeight = 8;//ilGetInteger(IL_IMAGE_HEIGHT);
+	imageWidth = ilGetInteger(IL_IMAGE_WIDTH);
+	imageHeight = ilGetInteger(IL_IMAGE_HEIGHT);
 
 	/*if (imageWidth != 256 || imageHeight != 256) {
 		puts("imageWidth ou ts não têm o valor 256.");
@@ -242,17 +237,17 @@ void init() {
 	// 	Load the height map "terreno.jpg"
 
 	// Iterating over lines
-	for (int i = 0; i < imageWidth - 1; i++) {
+	for (int j = 0; j < imageHeight - 1; j++) {
 
 		// Iterating over columns
-		for (int j = 0; j < imageHeight - 1; j++) {
-			gridVertices.push_back(i);
-			gridVertices.push_back(0);//gridVertices.push_back(h(j + 1, translateI));
-			gridVertices.push_back(j);
+		for (int i = 0; i < imageWidth; i++) {
+			gridVertices.push_back((float) i);
+			gridVertices.push_back(h(i, j));
+			gridVertices.push_back((float) j);
 
-			gridVertices.push_back(i + 1);
-			gridVertices.push_back(0);//gridVertices.push_back(h(j, i));
-			gridVertices.push_back(j);
+			gridVertices.push_back((float) i);
+			gridVertices.push_back(h(i, j + 1));
+			gridVertices.push_back((float) j + 1);
 		}
 	}
 
@@ -260,11 +255,11 @@ void init() {
 
 	glGenBuffers(1, buffers);
 	glBindBuffer(GL_ARRAY_BUFFER,buffers[0]);
-	glBufferData(GL_ARRAY_BUFFER, gridVertices.size(), gridVertices.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * gridVertices.size(), gridVertices.data(), GL_STATIC_DRAW);
 
 // 	OpenGL settings
 	glEnable(GL_DEPTH_TEST);
-	//glEnable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
 }
 
 
