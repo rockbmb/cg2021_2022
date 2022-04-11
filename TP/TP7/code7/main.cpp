@@ -253,6 +253,29 @@ void drawTrees() {
 		glPopMatrix();
 	}
 }
+
+void drawTeapots(int num, float dist, float r, float g, float b, bool outer, float timer) {
+	float angle;
+	for (int i = 0; i < num; i++) {
+		glPushMatrix();
+		if (outer) {
+			angle = (360 * i / num) - timer/10;
+		} else {
+			angle = (360 * i / num) + timer/10;
+		}
+		glRotatef(angle, 0, 1, 0);
+		if (outer) {
+			glTranslatef(0, 0, dist);
+		} else {
+			glTranslatef(dist, 0, 0);
+		}
+		glColor3f(r, g, b);
+		glutSolidTeapot(1);
+		glPopMatrix();
+	}
+	glutPostRedisplay();
+}
+
 /*
 -----------------------
 Fim de árvores e bules.
@@ -343,7 +366,17 @@ void renderScene(void) {
 	axis_system();
 
 	drawTrees();
-	glClearColor(1, 1, 1, 1);
+
+	glPushMatrix();
+	glTranslatef(0, 0.5, 0);
+	float timer = glutGet(GLUT_ELAPSED_TIME);
+	drawTeapots(blueTeapots, rc, 0, 0, 1, false, timer);
+	drawTeapots(redTeapots, ri, 1, 0, 0, true, timer);
+	glPopMatrix();
+
+	glColor3f(0.78, 0.68, 0.78);
+	glutSolidTorus(0.5, 2, 25, 25);
+
 // End of frame
 	glutSwapBuffers();
 }
