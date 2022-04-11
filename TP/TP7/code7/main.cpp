@@ -65,6 +65,14 @@ float h(int i, int j) {
 	return imageData[i * imageWidth + j];
 }
 
+/**
+ * @brief Given two XZ coordinate pairs in [-halfimageWidth, halfimageWidth] x [-halfimageHeight, halfimageHeight],
+ * produce their terrain height via bilinear interpolation.
+ * 
+ * @param x_ X coordinate of specified point, in [0, imageWidth].
+ * @param z_ Z coordinate of specified point, in [0, imageHeight].
+ * @return float Bilinearly interpolated height of given point, loaded from terreno.jpg.
+ */
 float height_float(float x_, float z_) {
 	float x = x_ + halfImgWidth;
 	float z = z_ + halfImgHeight;
@@ -116,6 +124,13 @@ void init() {
 
 	// 	Load the height map "terreno.jpg"
 
+	/*
+	The image vertices would normally be in [0, imageWidth] x [0, imageHeight],
+	but here, before putting the vertex coordinates in the vector, they're moved
+	by halfimageWidth/halfimageHeight to perform a translation on the terrain vertices.
+	This is so that the terrain square is in
+	[-halfimageWidth, halfimageWidth] x [-halfimageHeight, halfimageHeight] instead.
+	*/
 	// Iterating over lines
 	for (int j = 0; j < imageHeight - 1; j++) {
 		float vertZ = (float) j - (float) halfImgHeight;
@@ -134,7 +149,6 @@ void init() {
 	}
 
 // 	Build the vertex arrays
-
 	glGenBuffers(1, buffers);
 	glBindBuffer(GL_ARRAY_BUFFER,buffers[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * gridVertices.size(), gridVertices.data(), GL_STATIC_DRAW);
@@ -292,6 +306,14 @@ void drawTeapots(int num, float dist, float r, float g, float b, bool outer, flo
 	glutPostRedisplay();
 }
 
+void drawTorus() {
+	glColor3f(0.78, 0.68, 0.78);
+	glPushMatrix();
+	glTranslatef(0, height_float(0, 0), 0);
+	glutSolidTorus(0.5, 2, 25, 25);
+	glPopMatrix();
+}
+
 /*
 -----------------------
 Fim de árvores e bules.
@@ -387,8 +409,7 @@ void renderScene(void) {
 	drawTeapots(blueTeapots, rc, 0, 0, 1, false, timer);
 	drawTeapots(redTeapots, ri, 1, 0, 0, true, timer);
 
-	glColor3f(0.78, 0.68, 0.78);
-	glutSolidTorus(0.5, 2, 25, 25);
+	drawTorus();
 
 // End of frame
 	glutSwapBuffers();
