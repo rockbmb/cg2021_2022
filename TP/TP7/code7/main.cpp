@@ -65,7 +65,10 @@ float h(int i, int j) {
 	return imageData[i * imageWidth + j];
 }
 
-float height_float(float x, float z) {
+float height_float(float x_, float z_) {
+	float x = x_ + halfImgWidth;
+	float z = z_ + halfImgHeight;
+
 	int x1 = floor(x);
 	int x2 = ceil(x);
 
@@ -198,7 +201,7 @@ void genTreeData(int num) {
 			}
 		}
 		p.x = x;
-		p.y = height_float(x + halfImgWidth, z + halfImgHeight) - tree_root;
+		p.y = height_float(x, z) - tree_root;
 		p.z = z;
 		treeCoords.push_back(p);
 
@@ -256,18 +259,31 @@ void drawTrees() {
 
 void drawTeapots(int num, float dist, float r, float g, float b, bool outer, float timer) {
 	float angle;
+	float height;
 	for (int i = 0; i < num; i++) {
 		glPushMatrix();
+
+		/*
+		Outer and inner teapots rotate in opposite directions, so their angles must
+		have different signs - one decreases, while the other must increase.
+		*/
 		if (outer) {
 			angle = (360 * i / num) - timer/10;
 		} else {
 			angle = (360 * i / num) + timer/10;
 		}
+
+		/*
+		Necessary adding a small fraction to the teapots' height here,
+		otherwise they'll be partially rendered under the ground.
+		*/
+		height = 1 + height_float(dist * sin(angle), dist * cos(angle));
+
 		glRotatef(angle, 0, 1, 0);
 		if (outer) {
-			glTranslatef(0, 0, dist);
+			glTranslatef(0, height, dist);
 		} else {
-			glTranslatef(dist, 0, 0);
+			glTranslatef(dist, height, 0);
 		}
 		glColor3f(r, g, b);
 		glutSolidTeapot(1);
@@ -367,12 +383,9 @@ void renderScene(void) {
 
 	drawTrees();
 
-	glPushMatrix();
-	glTranslatef(0, 0.5, 0);
 	float timer = glutGet(GLUT_ELAPSED_TIME);
 	drawTeapots(blueTeapots, rc, 0, 0, 1, false, timer);
 	drawTeapots(redTeapots, ri, 1, 0, 0, true, timer);
-	glPopMatrix();
 
 	glColor3f(0.78, 0.68, 0.78);
 	glutSolidTorus(0.5, 2, 25, 25);
