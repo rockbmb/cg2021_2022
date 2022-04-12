@@ -59,6 +59,8 @@ float eyeHeight = 1.5;
 float camAlpha = 0;
 float camAlphaStep = 0.1;
 
+Vector camXVersor, camYVersor, camZVersor, camMinusZVersor;
+
 Point cam = {0, eyeHeight, 0};
 Point lookAt = {cam.x + sin(camAlpha), cam.y, cam.z + cos(camAlpha)};
 Vector up = {0, 1, 0};
@@ -343,6 +345,10 @@ void drawTeapots(int num, float dist, float r, float g, float b, bool outer, flo
 	glutPostRedisplay();
 }
 
+/*
+Note that the color the torus in drawn in will, for now, influence the color of
+the terrain mesh.
+*/
 void drawTorus() {
 	glColor3f(0.78, 0.68, 0.78);
 	glPushMatrix();
@@ -430,8 +436,8 @@ void renderScene(void) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glLoadIdentity();
-	gluLookAt(cam.x + movementX, cam.y, cam.z + movementZ,
-		      lookAt.x + movementX, lookAt.y, lookAt.z + movementZ,
+	gluLookAt(cam.x, cam.y, cam.z,
+		      lookAt.x, lookAt.y, lookAt.z,
 			  up.x, up.y, up.z);
 
 	glPolygonMode(GL_FRONT, GL_LINE);
@@ -453,7 +459,6 @@ void renderScene(void) {
 }
 
 // Called at every keyboard stroke (if it causes movement).
-
 void updateCamera() {
 	Vector viewDir = {
 		lookAt.x - cam.x,
@@ -463,7 +468,7 @@ void updateCamera() {
 
 	float norm  = sqrt(pow(viewDir.x, 2) + pow(viewDir.y, 2) + pow(viewDir.z, 2));
 
-	Vector camZVersor = {
+	camZVersor = {
 		- viewDir.x / norm,
 		- viewDir.y / norm,
 		- viewDir.z / norm
@@ -472,31 +477,23 @@ void updateCamera() {
 	Vector temp;
 
 	temp = cross(camZVersor, up);
-	Vector camYVersor = cross(camZVersor, temp);
-	Vector camXVersor = cross(camYVersor, camZVersor);
+	camYVersor = cross(camZVersor, temp);
+	camXVersor = cross(camYVersor, camZVersor);
 
-	cam.y = eyeHeight + height_float(cam.x + movementX, cam.z + movementZ);
+	cam.y = eyeHeight + height_float(cam.x, cam.z);
 	lookAt.x = cam.x + sin(camAlpha);
 	lookAt.y = cam.y;
 	lookAt.z = cam.z + cos(camAlpha);
 
-	Vector camMinusZVersor = {
+	camMinusZVersor = {
 		-camZVersor.x,
 		-camZVersor.y,
 		-camZVersor.z
 	};
 
-	movementX = forward_displacement * camMinusZVersor.x + lateral_displacement * camXVersor.x;
-	movementZ = forward_displacement * camMinusZVersor.z + lateral_displacement * camXVersor.z;
 }
 
 void processKeys(unsigned char key, int xx, int yy) {
-
-	float maxX = halfImgWidth - 2;
-	float minX = -maxX;
-	float maxZ = halfImgHeight - 2;
-	float minZ = -maxZ;
-
 // put code to process regular keys in here
 	switch(key) {
 		case ',':
@@ -509,16 +506,32 @@ void processKeys(unsigned char key, int xx, int yy) {
 			mode = GL_LINE;
 			break;
 		case 'w':
-			forward_displacement += movement_step;
+			cam.x += camMinusZVersor.x;
+			lookAt.x += camMinusZVersor.x;
+
+			cam.z += camMinusZVersor.z;
+			lookAt.z += camMinusZVersor.z;
 			break;
 		case 's':
-			forward_displacement -= movement_step;
+			cam.x -= camMinusZVersor.x;
+			lookAt.x -= camMinusZVersor.x;
+
+			cam.z -= camMinusZVersor.z;
+			lookAt.z -= camMinusZVersor.z;
 			break;
 		case 'a':
-			lateral_displacement += movement_step;
+			cam.x += camXVersor.x;
+			lookAt.x += camXVersor.x;
+
+			cam.z += camXVersor.z;
+			lookAt.z += camXVersor.z;
 			break;
 		case 'd':
-			lateral_displacement -= movement_step;
+			cam.x -= camXVersor.x;
+			lookAt.x -= camXVersor.x;
+
+			cam.z -= camXVersor.z;
+			lookAt.z -= camXVersor.z;
 			break;
 		case 'q':
 			camAlpha += camAlphaStep;
@@ -527,6 +540,17 @@ void processKeys(unsigned char key, int xx, int yy) {
 			camAlpha -= camAlphaStep;
 			break;
 	}
+
+	/*
+	Lower and upper camera position coordinate bounds.
+	*/
+	float maxX = halfImgWidth - 2;
+	float minX = -maxX;
+	float maxZ = halfImgHeight - 2;
+	float minZ = -maxZ;
+	cam.x = min(maxX, max(minX, cam.x));
+	cam.z = min(maxZ, max(minZ, cam.z));
+
 	updateCamera();
 }
 
