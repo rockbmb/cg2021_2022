@@ -80,18 +80,18 @@ void spherical2Cartesian() {
 	camZ = radius * cos(beta) * cos(alfa);
 
 
-	float tempX = lookAtX - camX;
-	float tempY = lookAtY - camY;
-	float tempZ = lookAtZ - camZ;
-	float norm  = sqrt(pow(tempX, 2) + pow(tempY, 2) + pow(tempZ, 2));
+	float viewDirX = lookAtX - camX;
+	float viewDirY = lookAtY - camY;
+	float viewDirZ = lookAtZ - camZ;
+	float norm  = sqrt(pow(viewDirX, 2) + pow(viewDirY, 2) + pow(viewDirZ, 2));
 
-	viewDirX = tempX / norm;
-	viewDirY = tempY / norm;
-	viewDirZ = tempZ / norm;
+	float camZVersorX = - viewDirX / norm;
+	float camZVersorY = - viewDirY / norm;
+	float camZVersorZ = - viewDirZ / norm;
 
 	Point temp;
 
-	camZVersor = {viewDirX, viewDirY, viewDirZ};
+	camZVersor = {camZVersorX, camZVersorY, camZVersorZ};
 	temp = cross(camZVersor, upVec);
 	camYVersor = cross(camZVersor, temp);
 	camXVersor = cross(camYVersor, camZVersor);

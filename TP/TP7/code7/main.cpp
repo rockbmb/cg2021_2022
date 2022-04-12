@@ -24,16 +24,13 @@ using namespace std;
 // Modo de desenho.
 int mode = GL_LINE;
 
-float movementX = 0;
-float movementZ = 0;
-float movement_step = 1;
-
-float camX = 00, camY = 30, camZ = 40;
-int startX, startY, tracking = 0;
-
-int alpha = 0, beta = 45, r = 50;
-
 struct Point {
+	float x;
+	float y;
+	float z;
+};
+
+struct Vector {
 	float x;
 	float y;
 	float z;
@@ -45,6 +42,46 @@ struct Color {
 	float b;
 };
 
+/*
+--------------------
+Câmara, e movimento.
+--------------------
+*/
+
+
+float movementX = 0;
+float movementZ = 0;
+float movement_step = 1;
+float forward_displacement = 0;
+float lateral_displacement = 0;
+
+float eyeHeight = 1.5;
+float camAlpha = 0;
+float camAlphaStep = 0.1;
+
+Point cam = {0, eyeHeight, 0};
+Point lookAt = {cam.x + sin(camAlpha), cam.y, cam.z + cos(camAlpha)};
+Vector up = {0, 1, 0};
+
+int startX, startY, tracking = 0;
+
+int alpha = 0, beta = 45, r = 50;
+
+Vector cross(Vector vec1, Vector vec2) {
+	Vector res;
+
+	res.x = vec1.y * vec2.z - vec1.z * vec2.y;
+	res.y = vec1.z * vec2.x - vec1.x * vec2.z;
+	res.z = vec1.x * vec2.y - vec1.y * vec2.x;
+
+	return res;
+}
+
+/*
+-------------------------
+Fim de câmara e movimento
+-------------------------
+*/
 
 GLuint buffers[1];
 vector<float> gridVertices;
@@ -393,9 +430,9 @@ void renderScene(void) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glLoadIdentity();
-	gluLookAt(movementX + camX, camY, camZ + movementZ,
-		      movementX, 0, movementZ,
-			  0.0f,1.0f,0.0f);
+	gluLookAt(cam.x + movementX, cam.y, cam.z + movementZ,
+		      lookAt.x + movementX, lookAt.y, lookAt.z + movementZ,
+			  up.x, up.y, up.z);
 
 	glPolygonMode(GL_FRONT, GL_LINE);
 
@@ -415,9 +452,50 @@ void renderScene(void) {
 	glutSwapBuffers();
 }
 
+// Called at every keyboard stroke (if it causes movement).
 
+void updateCamera() {
+	Vector viewDir = {
+		lookAt.x - cam.x,
+		lookAt.y - cam.y,
+		lookAt.z - cam.z
+	};
+
+	float norm  = sqrt(pow(viewDir.x, 2) + pow(viewDir.y, 2) + pow(viewDir.z, 2));
+
+	Vector camZVersor = {
+		- viewDir.x / norm,
+		- viewDir.y / norm,
+		- viewDir.z / norm
+	};
+
+	Vector temp;
+
+	temp = cross(camZVersor, up);
+	Vector camYVersor = cross(camZVersor, temp);
+	Vector camXVersor = cross(camYVersor, camZVersor);
+
+	cam.y = eyeHeight + height_float(cam.x + movementX, cam.z + movementZ);
+	lookAt.x = cam.x + sin(camAlpha);
+	lookAt.y = cam.y;
+	lookAt.z = cam.z + cos(camAlpha);
+
+	Vector camMinusZVersor = {
+		-camZVersor.x,
+		-camZVersor.y,
+		-camZVersor.z
+	};
+
+	movementX = forward_displacement * camMinusZVersor.x + lateral_displacement * camXVersor.x;
+	movementZ = forward_displacement * camMinusZVersor.z + lateral_displacement * camXVersor.z;
+}
 
 void processKeys(unsigned char key, int xx, int yy) {
+
+	float maxX = halfImgWidth - 2;
+	float minX = -maxX;
+	float maxZ = halfImgHeight - 2;
+	float minZ = -maxZ;
 
 // put code to process regular keys in here
 	switch(key) {
@@ -431,86 +509,25 @@ void processKeys(unsigned char key, int xx, int yy) {
 			mode = GL_LINE;
 			break;
 		case 'w':
-			movementZ += movement_step;
+			forward_displacement += movement_step;
 			break;
 		case 's':
-			movementZ -= movement_step;
+			forward_displacement -= movement_step;
 			break;
 		case 'a':
-			movementX += movement_step;
+			lateral_displacement += movement_step;
 			break;
 		case 'd':
-			movementX -= movement_step;
+			lateral_displacement -= movement_step;
+			break;
+		case 'q':
+			camAlpha += camAlphaStep;
+			break;
+		case 'e':
+			camAlpha -= camAlphaStep;
 			break;
 	}
-}
-
-
-
-void processMouseButtons(int button, int state, int xx, int yy) {
-	
-	if (state == GLUT_DOWN)  {
-		startX = xx;
-		startY = yy;
-		if (button == GLUT_LEFT_BUTTON)
-			tracking = 1;
-		else if (button == GLUT_RIGHT_BUTTON)
-			tracking = 2;
-		else
-			tracking = 0;
-	}
-	else if (state == GLUT_UP) {
-		if (tracking == 1) {
-			alpha += (xx - startX);
-			beta += (yy - startY);
-		}
-		else if (tracking == 2) {
-			
-			r -= yy - startY;
-			if (r < 3)
-				r = 3.0;
-		}
-		tracking = 0;
-	}
-}
-
-
-void processMouseMotion(int xx, int yy) {
-
-	int deltaX, deltaY;
-	int alphaAux, betaAux;
-	int rAux;
-
-	if (!tracking)
-		return;
-
-	deltaX = xx - startX;
-	deltaY = yy - startY;
-
-	if (tracking == 1) {
-
-
-		alphaAux = alpha + deltaX;
-		betaAux = beta + deltaY;
-
-		if (betaAux > 85.0)
-			betaAux = 85.0;
-		else if (betaAux < -85.0)
-			betaAux = -85.0;
-
-		rAux = r;
-	}
-	else if (tracking == 2) {
-
-		alphaAux = alpha;
-		betaAux = beta;
-		rAux = r - deltaY;
-		if (rAux < 3)
-			rAux = 3;
-	}
-	camX = rAux * sin(alphaAux * 3.14 / 180.0) * cos(betaAux * 3.14 / 180.0);
-	camZ = rAux * cos(alphaAux * 3.14 / 180.0) * cos(betaAux * 3.14 / 180.0);
-	camY = rAux *								 sin(betaAux * 3.14 / 180.0);
+	updateCamera();
 }
 
 int main(int argc, char **argv) {
@@ -530,8 +547,6 @@ int main(int argc, char **argv) {
 
 // Callback registration for keyboard processing
 	glutKeyboardFunc(processKeys);
-	glutMouseFunc(processMouseButtons);
-	glutMotionFunc(processMouseMotion);
 
 	glPolygonMode(GL_FRONT, mode);
 
