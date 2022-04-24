@@ -10,12 +10,27 @@
 
 #include <cstdio>
 #include <glm/glm.hpp>
+// Necessário para poder usar glm::value_ptr
+#include <glm/gtc/type_ptr.hpp>
+
+#include <vector>
+using namespace std;
 
 
 float camX = 0, camY, camZ = 5;
 int startX, startY, tracking = 0;
 
 int alpha = 0, beta = 0, r = 5;
+
+// Used to draw the teapot and Catmull-Rom curve in renderScene().
+vector<glm::vec3> positions;
+vector<glm::vec3> derivatives;
+vector<glm::vec3> x_versors;
+vector<glm::vec3> y_versors;
+vector<glm::vec3> z_versors;
+
+// Used to control the precision of the Catmull-Rom curve.
+int tesselation = 100;
 
 #define POINT_COUNT 5
 // Points that make up the loop for catmull-rom interpolation
@@ -66,7 +81,18 @@ void multMatrixVector(float *m, float *v, float *res) {
 }
 
 
-void getCatmullRomPoint(float t, float *p0, float *p1, float *p2, float *p3, glm::vec3 *pos, glm::vec3 *deriv) {
+void getCatmullRomPoint(
+	float t,
+	float *p0,
+	float *p1,
+	float *p2,
+	float *p3,
+	glm::vec3 *pos,
+	glm::vec3 *deriv,
+	glm::vec3 prev_y_versor,
+	glm::vec3 *x_versor,
+	glm::vec3 *y_versor,
+	glm::vec3 *z_versor) {
 	glm::mat4x3 p (
 		p0[0], p0[1], p0[2],
 		p1[0], p1[1], p1[2],
@@ -81,40 +107,34 @@ void getCatmullRomPoint(float t, float *p0, float *p1, float *p2, float *p3, glm
 		-0.5f,  0.0f,  0.5f,  0.0f,
 		 0.0f,  1.0f,  0.0f,  0.0f
 	);
-	
-	/*(
-		-0.5f,  1.0f, -0.5f, 0.0f,
-		 1.5f, -2.5f,  0.0f, 1.0f,
-		-1.5f,  2.0f,  0.5f, 0.0f,
-		 0.5f, -0.5f,  0.0f, 0.0f
-	);*/
 
 	// Compute pos = T * A
 	glm::vec4 t_ (pow(t, 3), pow(t, 2), t, 1.0);
+	*pos = p * m * t_;
 
 	// compute deriv = T' * A
 	glm::vec4 t_prime (3 * pow(t, 2), 2 * t, 1, 0);
-
-	/*for (int i = 0; i < 3; i++) {
-		glm::vec4 coords (p0[i], p1[i], p2[i], p3[i]);
-		glm::vec4 test = m * coords;
-		glm::vec4 res = t_ * test;
-		*pos[i] = res;
-		float res2 = t_
-		*deriv[i] = 
-		m * 
-	}*/
-	
-	*pos = p * m * t_;
-	
 	*deriv = p * m * t_prime;
+	deriv->x = deriv->x / 3;
+	deriv->y = deriv->y / 3;
+	deriv->z = deriv->z / 3;
 
 	// ...
+	*x_versor = glm::normalize(*deriv);
+	*z_versor = glm::normalize(glm::cross(*x_versor, prev_y_versor));
+	*y_versor = glm::normalize(glm::cross(*z_versor, *x_versor));
 }
 
 
 // given  global t, returns the point in the curve
-void getGlobalCatmullRomPoint(float gt, glm::vec3 *pos, glm::vec3 *deriv) {
+void getGlobalCatmullRomPoint(
+	float gt,
+	glm::vec3 *pos,
+	glm::vec3 *deriv,
+	glm::vec3 prev_y_versor,
+	glm::vec3 *x_versor,
+	glm::vec3 *y_versor,
+	glm::vec3 *z_versor) {
 
 	float t = gt * POINT_COUNT; // this is the real global t
 	int index = floor(t);  // which segment
@@ -127,7 +147,7 @@ void getGlobalCatmullRomPoint(float gt, glm::vec3 *pos, glm::vec3 *deriv) {
 	indices[2] = (indices[1]+1)%POINT_COUNT; 
 	indices[3] = (indices[2]+1)%POINT_COUNT;
 
-	getCatmullRomPoint(t, p[indices[0]], p[indices[1]], p[indices[2]], p[indices[3]], pos, deriv);
+	getCatmullRomPoint(t, p[indices[0]], p[indices[1]], p[indices[2]], p[indices[3]], pos, deriv, prev_y_versor, x_versor, y_versor, z_versor);
 }
 
 
@@ -159,19 +179,68 @@ void changeSize(int w, int h) {
 void renderCatmullRomCurve() {
 	glm::vec3 position;
 	glm::vec3 derivative;
+	glm::vec3 x_versor;
+	glm::vec3 y_versor;
+	glm::vec3 z_versor;
 
-	int tesselation = 100;
+	positions.clear();
+	derivatives.clear();
+	x_versors.clear();
+	y_versors.clear();
+	z_versors.clear();
+
+	y_versors.push_back(glm::vec3 (0.0, 1.0, 0.0));
+
+// draw curve using line segments with GL_LINE_LOOP
 	glBegin(GL_LINE_LOOP);
 	for (int i = 0; i < tesselation; i++) {
 		float t = (float) i / (float) tesselation;
-		getGlobalCatmullRomPoint(t, &position, &derivative);
-		glVertex3f(position[0], position[1], position[2]);
+		getGlobalCatmullRomPoint(t, &position, &derivative, y_versors[i], &x_versor, &y_versor, &z_versor);
+		positions.push_back(position);
+		derivatives.push_back(derivative);
+		x_versors.push_back(x_versor);
+		y_versors.push_back(y_versor);
+		z_versors.push_back(z_versor);
+	}
+
+	for (int i = 0; i < positions.size(); i++) {
+		glVertex3f(positions[i][0], positions[i][1], positions[i][2]);
 	}
 	glEnd();
-
-// draw curve using line segments with GL_LINE_LOOP
+	
+	glBegin(GL_LINES);
+	for (int i = 0; i < positions.size(); i++) {
+		glPushMatrix();
+		glTranslatef(positions[i].x, positions[i].y, positions[i].z);
+		glVertex3f(positions[i].x + derivatives[i].x, positions[i].y + derivatives[i].y, positions[i].z + derivatives[i].z);
+		glVertex3f(positions[i].x, positions[i].y, positions[i].z);
+		glPopMatrix();
+	}
+	glEnd();
 }
 
+void drawTeapotAlongCatmullRomCurve() {
+	//int j = 1 + (int) ((0.5 * (1 + sin(2 * M_PI * glutGet(GLUT_ELAPSED_TIME)/4000))) * (float) tesselation);
+	/*
+	Remember, x_versors and z_versors have tesselation = 100 elements, and
+	y_versors has tesselation + 1 = 101 elements - the first is the y_versor y_0
+	used to initialize the process, it is not used.
+	*/
+
+	int i = glutGet(GLUT_ELAPSED_TIME)/20 % (tesselation + 1);
+	glm::mat4 rot_matrix (
+		x_versors[i - 1].x, x_versors[i - 1].y, x_versors[i - 1].z, 0,
+		    y_versors[i].x,     y_versors[i].y,     y_versors[i].z, 0,
+		z_versors[i - 1].x, z_versors[i - 1].y, z_versors[i - 1].z, 0,
+		0,                  0,                  0,                  1
+	);
+	glPushMatrix();
+	glTranslatef(positions[i - 1].x, positions[i - 1].y, positions[i - 1].z);
+	glMultMatrixf(glm::value_ptr(rot_matrix));
+	glutWireTeapot(0.1);
+	glPopMatrix();
+	glutPostRedisplay();
+}
 
 void renderScene(void) {
 
@@ -189,8 +258,7 @@ void renderScene(void) {
 
 	// apply transformations here
 	// ...
-	glutWireTeapot(0.1);
-
+	drawTeapotAlongCatmullRomCurve();
 
 	glutSwapBuffers();
 	t+=0.00001;
@@ -254,8 +322,8 @@ void processMouseMotion(int xx, int yy)
 		alphaAux = alpha;
 		betaAux = beta;
 		rAux = r - deltaY;
-		if (rAux < 3)
-			rAux = 3;
+		if (rAux < 1.5)
+			rAux = 1.5;
 	}
 	camX = rAux * sin(alphaAux * 3.14 / 180.0) * cos(betaAux * 3.14 / 180.0);
 	camZ = rAux * cos(alphaAux * 3.14 / 180.0) * cos(betaAux * 3.14 / 180.0);
