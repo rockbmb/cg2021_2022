@@ -227,7 +227,7 @@ void drawTeapotAlongCatmullRomCurve() {
 	used to initialize the process, it is not used.
 	*/
 
-	int i = glutGet(GLUT_ELAPSED_TIME)/20 % (tesselation + 1);
+	int i = glutGet(GLUT_ELAPSED_TIME)/40 % (tesselation + 1);
 	glm::mat4 rot_matrix (
 		x_versors[i - 1].x, x_versors[i - 1].y, x_versors[i - 1].z, 0,
 		    y_versors[i].x,     y_versors[i].y,     y_versors[i].z, 0,
@@ -237,7 +237,7 @@ void drawTeapotAlongCatmullRomCurve() {
 	glPushMatrix();
 	glTranslatef(positions[i - 1].x, positions[i - 1].y, positions[i - 1].z);
 	glMultMatrixf(glm::value_ptr(rot_matrix));
-	glutWireTeapot(0.1);
+	glutWireCone(0.1, 1, 10, 10);
 	glPopMatrix();
 	glutPostRedisplay();
 }
