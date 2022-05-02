@@ -30,7 +30,7 @@ vector<glm::vec3> y_versors;
 vector<glm::vec3> z_versors;
 
 // Used to control the precision of the Catmull-Rom curve.
-int tesselation = 100;
+int tesselation = 200;
 
 #define POINT_COUNT 5
 // Points that make up the loop for catmull-rom interpolation
@@ -237,7 +237,11 @@ void drawTeapotAlongCatmullRomCurve() {
 	glPushMatrix();
 	glTranslatef(positions[i - 1].x, positions[i - 1].y, positions[i - 1].z);
 	glMultMatrixf(glm::value_ptr(rot_matrix));
-	glutWireCone(0.1, 1, 10, 10);
+	/*glPushMatrix();
+	glRotatef(90, 0, 1, 0);*/
+	glutWireTeapot(0.1);
+	/*glutWireCone(0.1, 1, 10, 10);
+	glPopMatrix();*/
 	glPopMatrix();
 	glutPostRedisplay();
 }

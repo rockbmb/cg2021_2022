@@ -218,18 +218,20 @@ void renderScene(void) {
 	//glRotatef(45, 0, 1, 0);
 
 	float pos[4] = {1.0, 1.0, 1.0, 0.0};
-	//float pos[4] = {1.0, 1.0, 1.0, 1.0};
+	/* última coordenada = 1 => ponto
+	float pos[4] = {1.0, 1.0, 1.0, 1.0};
+	*/
 	glLightfv(GL_LIGHT0, GL_POSITION, pos);
 
 	// Color for cylinder's material.
 	float dark[] = { 0.2, 0.2, 0.6, 1.0 };
 	float white[] = { 0.8, 0.8, 0.8, 1.0 };
 	float red[] = { 0.8, 0.2, 0.2, 1.0 };
-	float green[] = { 0, 1.0, 0, 1.0 };
+	float green[] = { 0.2, 0.8, 0, 1.0 };
 
 	//glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, dark);
 	glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, green);
-	//glMaterialfv(GL_FRONT, GL_SPECULAR, white);
+	glMaterialfv(GL_FRONT, GL_SPECULAR, green);
 	//glMaterialf(GL_FRONT, GL_SHININESS, 128);
 
 	drawCilinder();
@@ -298,8 +300,13 @@ void initGL() {
 	// Color of the light emmited by source.
 	GLfloat dark[4] = {0.2, 0.2, 0.2, 1.0};
 	GLfloat white[4] = {1, 1, 1, 1.0};
-	GLfloat red[4] = {1, 0, 0, 1.0};
+	GLfloat red[4] = {0.8, 0.2, 0, 1.0};
 	glLightfv(GL_LIGHT0, GL_AMBIENT, red);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, red);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, red);
+
+	//float black[4] = {0, 0, 0, 0};
+	//glLightModelfv( GL_LIGHT_MODEL_AMBIENT, black);
 
 
 // init
