@@ -16,6 +16,9 @@
 #include <GL/glut.h>
 #endif
 
+#include <glm/glm.hpp>
+
+
 #define ANG2RAD M_PI/180.0 
 
 #define COWBOYS 8
@@ -40,8 +43,10 @@ int startX, startY, tracking = 0;
 int alpha = 0, beta = 45, r = 50;
 
 unsigned int texture;
-int imageWidth;
+int imageWidth, imageHeight;
+int textureWidth, textureHeight;
 unsigned char *imageData;
+unsigned char *texData;
 
 // vectors to store vertex data temporarily
 std::vector<float> position, normal, texCoord;
@@ -120,10 +125,59 @@ void normalize(float *a) {
 }
 
 
+void border_normal() {
+	//glm::vec3 normal (0, 1, 0) para as fronteiras
+	normal.push_back(0);
+	normal.push_back(1);
+	normal.push_back(0);
+}
+
 void computeNormal(int i, int j) {
 
 	// fill the normal vector with the normal for vertex at grid location (i,j)
+	if (i == 0 && j == 0) {
+		border_normal();
+	}
+	if (i == imageWidth && j == imageHeight) {
+		border_normal();
+	}
+	if (i == 0 && j == imageHeight) {
+		border_normal();
+	}
+	if (i == imageWidth && j == 0) {
+		border_normal();
+	}
+	if (i == 0) {
+		border_normal();
+	}
+	if (j == 0) {
+		border_normal();
+	}
+	if (i == imageWidth) {
+		border_normal();
+	}
+	if (j == imageHeight) {
+		border_normal();
+	}
 
+	glm::vec3 p1 (i, h(i, j - 1), j - 1);
+	glm::vec3 p2 (i, h(i, j + 1), j + 1);
+
+	glm::vec3 p3 (i - 1, h(i - 1, j), j);
+	glm::vec3 p4 (i + 1, h(i + 1, j), j);
+
+	glm::vec3 v1 = p2 - p1;
+	glm::vec3 v2 = p4 - p3;
+
+	glm::vec3 norm = glm::normalize(glm::cross(v1, v2));
+	normal.push_back(norm.x);
+	normal.push_back(norm.y);
+	normal.push_back(norm.z);
+}
+
+void computeTexCoord(int i, int j) {
+	texCoord.push_back(i - imageWidth*0.5f);
+	texCoord.push_back(j - imageWidth*0.5f);
 }
 
 void prepareTerrain() {
@@ -134,6 +188,8 @@ void prepareTerrain() {
 			computeNormal(i + 1, j);
 			
 			// fill texCoord vector with the texture coordinates for grid location (i+1,j)
+			computeTexCoord(i + 1, j);
+			
 
 			position.push_back(i - imageWidth*0.5f + 1);
 			position.push_back(h(i + 1, j));
@@ -142,6 +198,8 @@ void prepareTerrain() {
 			computeNormal(i, j);
 
 			// fill texCoord vector with the texture coordinates for grid location (i,j)
+			computeTexCoord(i, j);
+
 
 			position.push_back(i - imageWidth*0.5f);
 			position.push_back(h(i, j));
@@ -395,13 +453,12 @@ void processMouseMotion(int xx, int yy) {
 
 void loadTexture() {
 
-	unsigned int t, tw, th;
-	unsigned char *texData;
+	unsigned int t;
 	ilGenImages(1, &t);
 	ilBindImage(t);
 	ilLoadImage((ILstring)"relva.jpg");
-	tw = ilGetInteger(IL_IMAGE_WIDTH);
-	th = ilGetInteger(IL_IMAGE_HEIGHT);
+	textureWidth = ilGetInteger(IL_IMAGE_WIDTH);
+	textureHeight = ilGetInteger(IL_IMAGE_HEIGHT);
 	ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);
 	texData = ilGetData();
 
@@ -414,7 +471,16 @@ void loadTexture() {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tw, th, 0, GL_RGBA, GL_UNSIGNED_BYTE, texData);
+	/*
+	Opções para mipmapping. (Des)comentar para testar.
+	*/
+	//glTexParameteri(GL_TEXTURE_2D,GL_NEAREST_MIPMAP_NEAREST,GL_REPEAT);
+	//glTexParameteri(GL_TEXTURE_2D,GL_NEAREST_MIPMAP_LINEAR,GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D,GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D,GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, texData);
+	glGenerateMipmap(GL_TEXTURE_2D);
 }
 
 
@@ -431,13 +497,17 @@ void init() {
 	ilLoadImage((ILstring)"terreno.jpg");
 	ilConvertImage(IL_LUMINANCE, IL_UNSIGNED_BYTE);
 
-	imageWidth = ilGetInteger(IL_IMAGE_HEIGHT);
+	imageHeight = ilGetInteger(IL_IMAGE_HEIGHT);
+	imageWidth = ilGetInteger(IL_IMAGE_WIDTH);
 	imageData = ilGetData();
-	printf("%d\n", imageWidth);
+
+	loadTexture();
+
+	printf("W: %d H: %d\n", imageWidth, imageHeight);
+	printf("W: %d H: %d\n", textureWidth, textureHeight);
 
 	prepareTerrain();
 
-	loadTexture();
 	
 	glEnable(GL_TEXTURE_2D);
 

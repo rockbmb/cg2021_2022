@@ -1,0 +1,11 @@
+**/ninja*
+**/*.3d
+**/.idea
+**/.cmake
+**/build
+**/CMakeFiles
+**/Testing
+**/*.ninja
+**/CMakeCache.*
+**/*.vscode
+**/bin

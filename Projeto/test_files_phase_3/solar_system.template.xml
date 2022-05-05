@@ -1,0 +1,104 @@
+<world> <!-- a world can have a camera, a set of lights, and a single group -->
+    <camera>
+        <position x="-400" y="0" z="400"/>
+        <lookAt x="0" y="0" z="0"/>
+        <up x="0" y="1" z="0"/> <!-- optional, use these values as default-->
+        <projection fov="60" near="10" far="100000"/> <!-- optional, use these values as default-->
+    </camera>
+
+    <group>
+        <group>
+            <transform>
+                <translate time="10" align="True"> <!-- O campo orient diz se o objecto deve ser orientado na curva -->
+                    <point x="-500" y="0" z="-1000"/>
+                    <point x="300" y="400" z="500"/>
+                    <point x="200" y="-500" z="-200"/>
+                    <point x="800" y="10" z="0"/>
+                </translate>
+            </transform>
+            <models>
+                <model file="teapot.3d"/>
+            </models>
+        </group>
+
+        <transform>
+            <rotate time="100" x="0" y="1" z="0"/>
+        </transform>
+        <models>
+            <model file="sun.3d"/>
+        </models>
+        <group>
+            <transform>
+                <rotate time="20" x="0" y="1" z="0"/>
+                <translate x="MERCURY" y="0" z="0"/>
+            </transform>
+            <models>
+                <model file="mercury.3d"/>
+            </models>
+        </group>
+        <group>
+            <transform>
+                <rotate time="15" x="0" y="1" z="0"/>
+                <translate x="VENUS" y="0" z="0"/>
+            </transform>
+            <models>
+                <model file="venus.3d"/>
+            </models>
+        </group>
+        <group>
+            <transform>
+                <rotate time="12" x="0" y="1" z="0"/>
+                <translate x="EARTH" y="0" z="0"/>
+            </transform>
+            <models>
+                <model file="earth.3d"/>
+            </models>
+        </group>
+        <group>
+            <transform>
+                <rotate time="31" x="0" y="1" z="0"/>
+                <translate x="MARS" y="0" z="0"/>
+            </transform>
+            <models>
+                <model file="mars.3d"/>
+            </models>
+        </group>
+        <group>
+            <transform>
+                <rotate time="22" x="0" y="1" z="0"/>
+                <translate x="JUPITER" y="0" z="0"/>
+            </transform>
+            <models>
+                <model file="jupiter.3d"/>
+            </models>
+        </group>
+        <group>
+            <transform>
+                <rotate time="29" x="0" y="1" z="0"/>
+                <translate x="SATURN" y="0" z="0"/>
+            </transform>
+            <models>
+                <model file="saturn.3d"/>
+            </models>
+        </group>
+        <group>
+            <transform>
+                <rotate time="44" x="0" y="1" z="0"/>
+                <translate x="URANUS" y="0" z="0"/>
+            </transform>
+            <models>
+                <model file="uranus.3d"/>
+            </models>
+        </group>
+        <group>
+            <transform>
+                <rotate time="59" x="0" y="1" z="0"/>
+                <translate x="NEPTUNE" y="0" z="0"/>
+            </transform>
+            <models>
+                <model file="neptune.3d"/>
+            </models>
+        </group>
+
+    </group>
+</world>
