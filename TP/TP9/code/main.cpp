@@ -105,17 +105,17 @@ void prepareCilinder(float height, float radius, int sides) {
 		v.push_back(height /2.0f);
 		v.push_back(radius * cos( i * delta));
 		vertex++;
-		norms.push_back(sin( (i+1) * delta));
+		norms.push_back(sin( (i) * delta));
 		norms.push_back(0);
-		norms.push_back(cos( (i+1) * delta));
+		norms.push_back(cos( (i) * delta));
 
 		v.push_back(radius * sin( i * delta));
 		v.push_back(-height /2.0f);
 		v.push_back(radius * cos( i * delta));
 		vertex++;
-		norms.push_back(sin( (i+1) * delta));
+		norms.push_back(sin( (i) * delta));
 		norms.push_back(0);
-		norms.push_back(cos( (i+1) * delta));
+		norms.push_back(cos( (i) * delta));
 
 		// triangle 2
 		v.push_back(radius * sin( (i+1) * delta));
@@ -138,9 +138,9 @@ void prepareCilinder(float height, float radius, int sides) {
 		v.push_back(-height /2.0f);
 		v.push_back(radius * cos( i * delta));
 		vertex++;
-		norms.push_back(sin( (i+1) * delta));
+		norms.push_back(sin( (i) * delta));
 		norms.push_back(0);
-		norms.push_back(cos( (i+1) * delta));
+		norms.push_back(cos( (i) * delta));
 
 		// base
 		// central point
@@ -217,7 +217,7 @@ void renderScene(void) {
 
 	//glRotatef(45, 0, 1, 0);
 
-	float pos[4] = {1.0, 1.0, 1.0, 0.0};
+	float pos[4] = {0.0, 0.0, 5.0, 1.0};
 	/* última coordenada = 1 => ponto
 	float pos[4] = {1.0, 1.0, 1.0, 1.0};
 	*/
@@ -229,12 +229,13 @@ void renderScene(void) {
 	float red[] = { 0.8, 0.2, 0.2, 1.0 };
 	float green[] = { 0.2, 0.8, 0, 1.0 };
 
-	//glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, dark);
-	glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, green);
+	glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, dark);
+	//glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, green);
 	glMaterialfv(GL_FRONT, GL_SPECULAR, green);
 	//glMaterialf(GL_FRONT, GL_SHININESS, 128);
 
-	drawCilinder();
+	//drawCilinder();
+	glutSolidSphere(1, 100, 100);
 
 	frame++;
 	time=glutGet(GLUT_ELAPSED_TIME); 
@@ -301,12 +302,12 @@ void initGL() {
 	GLfloat dark[4] = {0.2, 0.2, 0.2, 1.0};
 	GLfloat white[4] = {1, 1, 1, 1.0};
 	GLfloat red[4] = {0.8, 0.2, 0, 1.0};
-	glLightfv(GL_LIGHT0, GL_AMBIENT, red);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, red);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, red);
+	glLightfv(GL_LIGHT0, GL_AMBIENT, white);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, white);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, white);
 
-	//float black[4] = {0, 0, 0, 0};
-	//glLightModelfv( GL_LIGHT_MODEL_AMBIENT, black);
+	float black[4] = {0, 0, 0, 0};
+	glLightModelfv( GL_LIGHT_MODEL_AMBIENT, black);
 
 
 // init
