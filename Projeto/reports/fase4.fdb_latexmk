@@ -1,13 +1,13 @@
 # Fdb version 3
-["bibtex fase4"] 1654467137 "fase4.aux" "fase4.bbl" "fase4" 1654467144
+["bibtex fase4"] 1654467800 "fase4.aux" "fase4.bbl" "fase4" 1654467807
   "/usr/local/texlive/2022/texmf-dist/bibtex/bst/base/alpha.bst" 1292289607 23907 a5f93555796fb564b924339521f10a7c ""
   "bibLayout.bib" 0 -1 0 ""
-  "fase4.aux" 1654467144 6092 74e496ad63b005b2e8e1a94a1c32843a "pdflatex"
+  "fase4.aux" 1654467807 6142 660e7cb6a8b960bcc75b0ccd9b8ac1cf "pdflatex"
   (generated)
   "fase4.bbl"
   "fase4.blg"
-["pdflatex"] 1654467138 "/mnt/c/Users/alexa/Desktop/Uni/3Ano/2Semestre/CG/Projeto/reports/fase4.tex" "fase4.pdf" "fase4" 1654467144
-  "/mnt/c/Users/alexa/Desktop/Uni/3Ano/2Semestre/CG/Projeto/reports/fase4.tex" 1654467131 22489 d18381ddd22d481a5c1b8da2c6effe0b ""
+["pdflatex"] 1654467801 "/mnt/c/Users/alexa/Desktop/Uni/3Ano/2Semestre/CG/Projeto/reports/fase4.tex" "fase4.pdf" "fase4" 1654467807
+  "/mnt/c/Users/alexa/Desktop/Uni/3Ano/2Semestre/CG/Projeto/reports/fase4.tex" 1654467793 22514 064745ec5f98fee23d6109e3f1beb508 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/tfm/jknappen/ec/tcrm1000.tfm" 1136768653 1536 e07581a4bb3136ece9eeb4c3ffab8233 ""
@@ -221,12 +221,12 @@
   "bezier_texture.jpg" 1654467022 92101 a87681cdb697c4f75a617eb565eb8d93 ""
   "cone_normal.png" 1654467022 30428 2695ff93c7f3f6329e98a2fb2fff2ae6 ""
   "exemplo.png" 1654467022 1957866 5bb2aa1ef1546903b79e50ca52a9184f ""
-  "fase4.aux" 1654467144 6092 74e496ad63b005b2e8e1a94a1c32843a "pdflatex"
+  "fase4.aux" 1654467807 6142 660e7cb6a8b960bcc75b0ccd9b8ac1cf "pdflatex"
   "fase4.bbl" 0 -1 0 "bibtex fase4"
-  "fase4.lof" 1654467144 937 0758a5cf672430007762772955ec5bb2 "pdflatex"
-  "fase4.out" 1654467144 2720 fe72ba1ea3a35e5504a25795465f8f21 "pdflatex"
-  "fase4.tex" 1654467131 22489 d18381ddd22d481a5c1b8da2c6effe0b ""
-  "fase4.toc" 1654467144 1685 563361582649155015dc5ef2b8b9974a "pdflatex"
+  "fase4.lof" 1654467807 962 0e7273fecf20d9ad2f5a919285e70eef "pdflatex"
+  "fase4.out" 1654467807 2720 fe72ba1ea3a35e5504a25795465f8f21 "pdflatex"
+  "fase4.tex" 1654467793 22514 064745ec5f98fee23d6109e3f1beb508 ""
+  "fase4.toc" 1654467807 1685 563361582649155015dc5ef2b8b9974a "pdflatex"
   "galaxy.jpg" 1654467022 42786 fb08cfed7cd7ff50a441418c813758d1 ""
   "sphere_uv_map.jpg" 1654467022 41597 b7f5009a610c6f2ae38e3560bf100134 ""
   (generated)
