@@ -1,0 +1,22 @@
+\babel@toc {portuges}{}\relax 
+\contentsline {chapter}{\numberline {1}Introdução}{3}{chapter.1}%
+\contentsline {chapter}{\numberline {2}Notas sobre Implementação}{4}{chapter.2}%
+\contentsline {section}{\numberline {2.1}\texttt {Generator.cpp}}{4}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}Geração de vetores normais e coordenadas de textura}{4}{subsection.2.1.1}%
+\contentsline {subsubsection}{Plano}{4}{section*.4}%
+\contentsline {subsubsection}{`\textit {Box}'}{4}{section*.5}%
+\contentsline {subsubsection}{Esfera}{5}{section*.6}%
+\contentsline {subsubsection}{Cone}{6}{section*.7}%
+\contentsline {subsubsection}{Superfície de Bezier}{6}{section*.8}%
+\contentsline {section}{\numberline {2.2}\texttt {Engine.cpp}}{9}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Valores por defeito para as luzes}{9}{subsection.2.2.1}%
+\contentsline {chapter}{\numberline {3}Trabalho adicional}{10}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Extensão ao XML}{10}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Câmara FPS}{10}{section.3.2}%
+\contentsline {section}{\numberline {3.3}``\textit {Skybox}'' para sistema solar}{10}{section.3.3}%
+\contentsline {section}{\numberline {3.4}Movimento no espaço através de periférico}{11}{section.3.4}%
+\contentsline {chapter}{\numberline {4}Exemplo de utilização}{12}{chapter.4}%
+\contentsline {chapter}{\numberline {5}Conclusão}{13}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Comentários}{13}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Trabalho Futuro}{13}{section.5.2}%
+\contentsline {chapter}{\numberline {A}Excertos de Código Utilizado no Projeto}{14}{appendix.A}%

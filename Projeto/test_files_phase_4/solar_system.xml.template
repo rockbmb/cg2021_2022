@@ -1,0 +1,156 @@
+<world> <!-- a world can have a camera, a set of lights, and a single group -->
+    <camera>
+        <position x="-400" y="0" z="400"/>
+        <lookAt x="0" y="0" z="0"/>
+        <up x="0" y="1" z="0"/> <!-- optional, use these values as default-->
+        <projection fov="60" near="10" far="1000000"/> <!-- optional, use these values as default-->
+    </camera>
+
+    <lights>
+        <light type="spotlight" posX="0" posY="0" posZ="0" dirX="1" dirY="0" dirZ="0" cutoff="10000"/>
+        <light type="spotlight" posX="0" posY="0" posZ="0" dirX="-1" dirY="0" dirZ="0" cutoff="10000"/>
+        <light type="spotlight" posX="0" posY="0" posZ="0" dirX="-.5" dirY="0" dirZ="0" cutoff="10000"/>
+        <light type="spotlight" posX="0" posY="0" posZ="0" dirX=".5" dirY="0" dirZ="0" cutoff="10000"/>
+    </lights>
+
+    <group>
+
+        <group>
+            <models>
+                <model file="sky.3d"> <!-- generator box 2 3 box_nt.3d -->
+                    <color>
+                        <!--                        <diffuse R="255" G="255" B="255"/>-->
+                        <ambient R="255" G="255" B="255"/>
+                        <!--                        <specular R="255" G="255" B="255"/>-->
+                        <!--                        <emissive R="255" G="255" B="255"/>-->
+                        <shininess value="128"/>
+                    </color>
+                    <texture file="/home/useralef/Downloads/startmap.jpg"/>
+                    <!--                    <texture file="/home/useralef/Downloads/starmap_2020_16k.exr"/>-->
+
+                </model>
+            </models>
+        </group>
+
+        <group>
+            <transform>
+                <translate time="10" align="True"> <!-- O campo orient diz se o objecto deve ser orientado na curva -->
+                    <point x="-500" y="0" z="-1000"/>
+                    <point x="300" y="400" z="500"/>
+                    <point x="200" y="-500" z="-200"/>
+                    <point x="800" y="10" z="0"/>
+                </translate>
+                <scale x="20" y="20" z="20"/>
+            </transform>
+            <models>
+                <model file="teapot.3d">
+                    <texture file="teapot.jpg"/>
+                    <generator argv="bezier ../test_files_phase_3/teapot.patch 10 teapot.3d"/>
+                </model>
+            </models>
+        </group>
+
+        <group>
+            <transform>
+                <rotate time="100" x="0" y="1" z="0"/>
+            </transform>
+            <models>
+                <model file="sun.3d">
+                    <texture file="sun.jpg"/>
+                    <color>
+                        <emissive R="255" G="255" B="255"/>
+                    </color>
+                </model>
+            </models>
+            <group>
+                <transform>
+                    <rotate time="20" x="0" y="1" z="0"/>
+                    <translate x="MERCURY" y="0" z="0"/>
+                </transform>
+                <models>
+                    <model file="mercury.3d">
+                        <texture file="mercury.jpg"/>
+                    </model>
+                </models>
+            </group>
+            <group>
+                <transform>
+                    <rotate time="15" x="0" y="1" z="0"/>
+                    <translate x="VENUS" y="0" z="0"/>
+                </transform>
+                <models>
+                    <model file="venus.3d">
+                        <texture file="venus.jpg"/>
+                    </model>
+                </models>
+            </group>
+            <group>
+                <transform>
+                    <rotate time="12" x="0" y="1" z="0"/>
+                    <translate x="EARTH" y="0" z="0"/>
+                </transform>
+                <models>
+                    <model file="earth.3d">
+                        <texture file="earth.jpg"/>
+                    </model>
+                </models>
+            </group>
+            <group>
+                <transform>
+                    <rotate time="31" x="0" y="1" z="0"/>
+                    <translate x="MARS" y="0" z="0"/>
+                </transform>
+                <models>
+                    <model file="mars.3d">
+                        <texture file="mars.jpg"/>
+                    </model>
+                </models>
+            </group>
+            <group>
+                <transform>
+                    <rotate time="22" x="0" y="1" z="0"/>
+                    <translate x="JUPITER" y="0" z="0"/>
+                </transform>
+                <models>
+                    <model file="jupiter.3d">
+                        <texture file="jupiter.jpg"/>
+                    </model>
+                </models>
+            </group>
+            <group>
+                <transform>
+                    <rotate time="29" x="0" y="1" z="0"/>
+                    <translate x="SATURN" y="0" z="0"/>
+                </transform>
+                <models>
+                    <model file="saturn.3d">
+                        <texture file="saturn.jpg"/>
+                    </model>
+                </models>
+            </group>
+            <group>
+                <transform>
+                    <rotate time="44" x="0" y="1" z="0"/>
+                    <translate x="URANUS" y="0" z="0"/>
+                </transform>
+                <models>
+                    <model file="uranus.3d">
+                        <texture file="uranus.jpg"/>
+                    </model>
+                </models>
+            </group>
+            <group>
+                <transform>
+                    <rotate time="59" x="0" y="1" z="0"/>
+                    <translate x="NEPTUNE" y="0" z="0"/>
+                </transform>
+                <models>
+                    <model file="neptune.3d">
+                        <texture file="neptune.jpg"/>
+                    </model>
+                </models>
+            </group>
+        </group>
+
+    </group>
+</world>

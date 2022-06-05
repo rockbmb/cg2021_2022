@@ -12,4 +12,4 @@ Notes on phase IV:
 	float amb[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, amb);
 	
-- Regarding texture mapping as provided in the screen shots, groups may offer different mappings, in which case the group should build a project XML file to illustrate their mapping.
+- Regarding texture mapping as provided in the screenshots, groups may offer different mappings, in which case the group should build a project XML file to illustrate their mapping.

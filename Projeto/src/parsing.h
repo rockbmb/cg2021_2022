@@ -3,16 +3,28 @@
 
 #include <vector>
 
-void operations_load_xml(const char *filename, std::vector<float> *operations);
+void operations_load_xml (const std::string &filename, std::vector<float> &operations);
 
 enum {
   TRANSLATE = 1,
   ROTATE,
   SCALE,
-  LOAD_MODEL,
+  BEGIN_MODEL,
+  END_MODEL,
   BEGIN_GROUP,
   END_GROUP,
   EXTENDED_TRANSLATE,
-  EXTENDED_ROTATE
+  EXTENDED_ROTATE,
+  TEXTURE,
+  DIFFUSE,
+  AMBIENT,
+  SPECULAR,
+  EMISSIVE,
+  SHININESS,
+  POINT,
+  DIRECTIONAL,
+  SPOTLIGHT
 };
+
+typedef unsigned char operation_t;
 #endif //PROJ_PARSING_H

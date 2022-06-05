@@ -9,3 +9,7 @@
 **/CMakeCache.*
 **/*.vscode
 **/bin
+/.run
+/cmake-build-debug
+test_files_phase_4/starmap_2020_64k.exr
+test_files_phase_4/*.exr

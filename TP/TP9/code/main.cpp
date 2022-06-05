@@ -234,8 +234,8 @@ void renderScene(void) {
 	glMaterialfv(GL_FRONT, GL_SPECULAR, green);
 	//glMaterialf(GL_FRONT, GL_SHININESS, 128);
 
-	//drawCilinder();
-	glutSolidSphere(1, 100, 100);
+	drawCilinder();
+	//glutSolidSphere(1, 100, 100);
 
 	frame++;
 	time=glutGet(GLUT_ELAPSED_TIME); 

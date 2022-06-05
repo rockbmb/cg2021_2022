@@ -7,8 +7,9 @@
     </camera>
 	<group> 
 		<transform>
-			<rotate angle="-90" x = "1" y="0" z = "0" /> 
-		</transform>
+            <rotate angle="-90" x="1" y="0" z="0"/>
+            <rotate time="2" x="0" y="0" z="1"/>
+        </transform>
   		<models> 
 			<model file="teapot.3d" /> <!-- generator bezier teapot.patch 10 bezier.3d -->
  		</models>

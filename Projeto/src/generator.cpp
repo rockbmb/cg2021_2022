@@ -1,23 +1,30 @@
-#define _USE_MATH_DEFINES
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
 
-#include <math.h>
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/string_cast.hpp>
 
 #include <vector>
 #include <string>
-#include <sstream>
 #include <fstream>
 #include <tuple>
 #include <iostream>
+#include <csignal>
 
 #include "curves.h"
 
-using glm::mat4, glm::vec4, glm::vec3, std::vector, std::tuple, std::string, std::ifstream, std::ios, std::stringstream, std::array, glm::mat4x3, glm::to_string;
+using glm::mat4, glm::vec4, glm::vec3, glm::vec2, glm::mat4x3;
+using glm::normalize, glm::cross;
+
+using std::vector, std::tuple, std::array;
+
+using std::string, std::ifstream, std::ios, std::stringstream;
+using std::cerr, std::endl, glm::to_string;
+
+template<class T>
+concept arithmetic =  std::is_integral<T>::value or std::is_floating_point<T>::value;
 
 const char *SPHERE = "sphere";
 const char *CUBE = "box";
@@ -26,6 +33,13 @@ const char *PLANE = "plane";
 const char *BEZIER = "bezier";
 /*! @addtogroup generator
 * @{*/
+
+struct baseModel {
+  int nVertices;
+  float *vertices;
+  float *normals;
+  float *texture_coordinates;
+};
 
 /*! @addtogroup points
  * @{*/
@@ -42,7 +56,7 @@ void points_write (const char *filename, const unsigned int nVertices, const flo
   FILE *fp = fopen (filename, "w");
   if (!fp)
     {
-      fprintf (stderr, "failed to open file");
+      fprintf (stderr, "failed to open file: %s", filename);
       exit (1);
     }
 
@@ -51,6 +65,39 @@ void points_write (const char *filename, const unsigned int nVertices, const flo
 
   fclose (fp);
 }
+
+void
+model_write (const char *const filename,
+             const vector<vec3> &vertices,
+             const vector<vec3> &normals,
+             const vector<vec2> &texture)
+{
+  FILE *fp = fopen (filename, "w");
+
+  if (!fp)
+    {
+      fprintf (stderr, "failed to open file: %s", filename);
+      exit (1);
+    }
+
+  assert(vertices.size () < INT_MAX);
+  const int nVertices = vertices.size ();
+  const int nNormals = normals.size ();
+  const int nTextures = texture.size ();
+  fwrite (&nVertices, sizeof (nVertices), 1, fp);
+  fwrite (vertices.data (), sizeof (vertices.back ()), nVertices, fp);
+  fwrite (normals.data (), sizeof (normals.back ()), nNormals, fp);
+  fwrite (texture.data (), sizeof (texture.back ()), nTextures, fp);
+
+  fclose (fp);
+
+  cerr << "[generator] Wrote "
+       << nVertices << " vertices, "
+       << nNormals << " normals, "
+       << nTextures << " textures to "
+       << filename << endl;
+}
+
 //!@} end of group points
 
 /*! @addtogroup model
@@ -58,134 +105,244 @@ void points_write (const char *filename, const unsigned int nVertices, const flo
 
 /*! @addtogroup plane
 * @{*/
-void model_plane_vertices (const float length, const unsigned int divisions, float *points)
+void model_plane_vertices (const float length,
+                           const unsigned int divisions,
+                           vector<vec3> &vertices,
+                           vector<vec3> &normals,
+                           vector<vec2> &texture)
 {
   const float o = -length / 2.0f;
   const float d = length / (float) divisions;
 
-  unsigned int pos = 0;
-
-  for (unsigned int m = 1; m <= divisions; m++)
+  for (unsigned int uidiv1 = 1; uidiv1 <= divisions; ++uidiv1)
     {
-      for (unsigned int n = 1; n <= divisions; n++)
+      for (unsigned int uidiv2 = 1; uidiv2 <= divisions; ++uidiv2)
         {
-          float i = (float) m;
-          float j = (float) n;
+          auto const fdiv1 = (float) uidiv1;
+          auto const fdiv2 = (float) uidiv2;
+          auto const fdivisions = (float) divisions;
 
-          points_vertex (o + d * (i - 1), 0, o + d * (j - 1), &pos, points); //P1
-          points_vertex (o + d * (i - 1), 0, o + d * j, &pos, points); //P1'z
-          points_vertex (o + d * i, 0, o + d * (j - 1), &pos, points); //P1'x
+          for (auto e : {
+              array<float, 2>{-1, -1},//P1
+              array<float, 2>{-1, 0},//P1'z
+              array<float, 2>{0, -1},//P1'x
 
-          points_vertex (o + d * i, 0, o + d * (j - 1), &pos, points); //P1'x
-          points_vertex (o + d * (i - 1), 0, o + d * j, &pos, points); //P1'z
-          points_vertex (o + d * i, 0, o + d * j, &pos, points); //P2
+              array<float, 2>{0, -1},//P1'x
+              array<float, 2>{-1, 0},//P1'z
+              array<float, 2>{0, 0}})//P2
+            {
+              vertices.emplace_back (o + d * (fdiv1 + e[0]), 0, o + d * (fdiv2 + e[1]));
+              normals.emplace_back (0, 1, 0);
+              texture.emplace_back ((fdiv1 + e[0]) / fdivisions, (fdiv2 + e[1]) / fdivisions);
+            }
+
 
           /*Cull face*/
-          points_vertex (o + d * (i - 1), 0, o + d * j, &pos, points); //P1'z
-          points_vertex (o + d * (i - 1), 0, o + d * (j - 1), &pos, points); //P1
-          points_vertex (o + d * i, 0, o + d * (j - 1), &pos, points); //P1'x
+          for (auto e : {
+              array<float, 2>{-1.0f, 0.0f},
+              array<float, 2>{-1.0f, -1.0f},
+              array<float, 2>{0.0f, -1.0f},
 
-          points_vertex (o + d * (i - 1), 0, o + d * j, &pos, points); //P1'z
-          points_vertex (o + d * i, 0, o + d * (j - 1), &pos, points); //P1'x
-          points_vertex (o + d * i, 0, o + d * j, &pos, points); //P2
+              array<float, 2>{-1.0f, 0.0f},
+              array<float, 2>{0.0f, -1.0f},
+              array<float, 2>{0.0f, 0.0f}})
+            {
+              vertices.emplace_back (o + d * (fdiv1 + e[0]), 0, o + d * (fdiv2 + e[1]));
+              normals.emplace_back (0, -1, 0);
+              texture.emplace_back ((fdiv1 + e[0]) / fdivisions, (fdiv2 + e[1]) / fdivisions);
+            }
         }
     }
 }
 
-inline unsigned int model_plane_nVertices (const unsigned int divisions)
+static inline unsigned int model_plane_nVertices (const unsigned int divisions)
 { return divisions * divisions * 12; }
 
 void model_plane_write (const char *filepath, const float length, const unsigned int divisions)
 {
   const unsigned int nVertices = model_plane_nVertices (divisions);
-  float points[3 * nVertices];
-  model_plane_vertices (length, divisions, points);
-  points_write (filepath, nVertices, points);
+  vector<vec3> vertices;
+  vertices.reserve (nVertices);
+  vector<vec3> normals;
+  normals.reserve (nVertices);
+  vector<vec2> texture;
+  texture.reserve (nVertices);
+  model_plane_vertices (length, divisions, vertices, normals, texture);
+  model_write (filepath, vertices, normals, texture);
 }
 //!@} end of group plane
 
 /*! @addtogroup cube
 * @{*/
-void model_cube_vertices (const float length, const unsigned int divisions, float points[])
+void model_cube_vertices (const float length,
+                          const unsigned int divisions,
+                          vector<vec3> &vertices,
+                          vector<vec3> &normals,
+                          vector<vec2> &texture)
 {
   const float o = -length / 2.0f;
   const float d = length / (float) divisions;
 
-  unsigned int pos = 0;
-
-  for (unsigned int m = 1; m <= divisions; m++)
+  for (unsigned int uidiv1 = 1; uidiv1 <= divisions; uidiv1++)
     {
-      for (unsigned int n = 1; n <= divisions; n++)
+      for (unsigned int uidiv2 = 1; uidiv2 <= divisions; uidiv2++)
         {
-          float i = (float) m;
-          float j = (float) n;
+          auto const fdiv1 = (float) uidiv1;
+          auto const fdiv2 = (float) uidiv2;
+          auto const fdivisions = (float) divisions;
 
-          // top
-          points_vertex (o + d * (i - 1), -o, o + d * (j - 1), &pos, points); //P1
-          points_vertex (o + d * (i - 1), -o, o + d * j, &pos, points); //P1'z
-          points_vertex (o + d * i, -o, o + d * (j - 1), &pos, points); //P1'x
+          // y+
+          for (auto e : {
+              array<float, 2>{-1, -1}, //P1
+              array<float, 2>{-1, 0}, //P1'z
+              array<float, 2>{0, -1}, //P1'x
 
-          points_vertex (o + d * i, -o, o + d * (j - 1), &pos, points); //P1'x
-          points_vertex (o + d * (i - 1), -o, o + d * j, &pos, points); //P1'z
-          points_vertex (o + d * i, -o, o + d * j, &pos, points); //P2
+              array<float, 2>{0, -1}, //P1'x
+              array<float, 2>{-1, 0}, //P1'z
+              array<float, 2>{0, 0}   //P2
+          })
+            {
+              vertices.emplace_back (o + d * (fdiv1 + e[0]), -o, o + d * (fdiv2 + e[1]));
+              normals.emplace_back (0, 1, 0);
+              texture.emplace_back ((fdiv1 + e[0]) / fdivisions, (fdiv2 + e[1]) / fdivisions);
+            }
 
-          // bottom
-          points_vertex (o + d * (i - 1), o, o + d * j, &pos, points); //P1'z
-          points_vertex (o + d * (i - 1), o, o + d * (j - 1), &pos, points); //P1
-          points_vertex (o + d * i, o, o + d * (j - 1), &pos, points); //P1'x
+          // y-
+          vertices.emplace_back (o + d * (fdiv1 - 1), o, o + d * fdiv2); //P1'z
+          vertices.emplace_back (o + d * (fdiv1 - 1), o, o + d * (fdiv2 - 1)); //P1
+          vertices.emplace_back (o + d * fdiv1, o, o + d * (fdiv2 - 1)); //P1'x
 
-          points_vertex (o + d * (i - 1), o, o + d * j, &pos, points); //P1'z
-          points_vertex (o + d * i, o, o + d * (j - 1), &pos, points); //P1'x
-          points_vertex (o + d * i, o, o + d * j, &pos, points); //P2
+          vertices.emplace_back (o + d * (fdiv1 - 1), o, o + d * fdiv2); //P1'z
+          vertices.emplace_back (o + d * fdiv1, o, o + d * (fdiv2 - 1)); //P1'x
+          vertices.emplace_back (o + d * fdiv1, o, o + d * fdiv2); //P2
 
-          // left
-          points_vertex (o, o + d * (i - 1), o + d * (j - 1), &pos, points); //P1
-          points_vertex (o, o + d * (i - 1), o + d * j, &pos, points); //P1'z
-          points_vertex (o, o + d * i, o + d * (j - 1), &pos, points); //P1'x
+          for (int k = 0; k < 6; ++k)
+            normals.emplace_back (0, -1, 0);
+          for (auto e : {
+              vec2 (-1.0f, 0.0f),
+              vec2 (-1.0f, -1.0f),
+              vec2 (0.0f, -1.0f),
 
-          points_vertex (o, o + d * i, o + d * (j - 1), &pos, points); //P1'x
-          points_vertex (o, o + d * (i - 1), o + d * j, &pos, points); //P1'z
-          points_vertex (o, o + d * i, o + d * j, &pos, points); //P2
+              vec2 (-1.0f, 0.0f),
+              vec2 (0.0f, -1.0f),
+              vec2 (0.0f, 0.0f)})
+            texture.emplace_back ((fdiv1 + e[0]) / fdivisions, (fdiv2 + e[1]) / fdivisions);
 
-          // right
-          points_vertex (-o, o + d * (i - 1), o + d * j, &pos, points); //P1'z
-          points_vertex (-o, o + d * (i - 1), o + d * (j - 1), &pos, points); //P1
-          points_vertex (-o, o + d * i, o + d * (j - 1), &pos, points); //P1'x
 
-          points_vertex (-o, o + d * (i - 1), o + d * j, &pos, points); //P1'z
-          points_vertex (-o, o + d * i, o + d * (j - 1), &pos, points); //P1'x
-          points_vertex (-o, o + d * i, o + d * j, &pos, points); //P2
+          // x-
+          vertices.emplace_back (o, o + d * (fdiv1 - 1), o + d * (fdiv2 - 1)); //P1
+          vertices.emplace_back (o, o + d * (fdiv1 - 1), o + d * fdiv2); //P1'z
+          vertices.emplace_back (o, o + d * fdiv1, o + d * (fdiv2 - 1)); //P1'x
 
-          // front
-          points_vertex (o + d * (i - 1), o + d * (j - 1), o, &pos, points); //P1
-          points_vertex (o + d * (i - 1), o + d * j, o, &pos, points); //P1'z
-          points_vertex (o + d * i, o + d * (j - 1), o, &pos, points); //P1'x
+          vertices.emplace_back (o, o + d * fdiv1, o + d * (fdiv2 - 1)); //P1'x
+          vertices.emplace_back (o, o + d * (fdiv1 - 1), o + d * fdiv2); //P1'z
+          vertices.emplace_back (o, o + d * fdiv1, o + d * fdiv2); //P2
 
-          points_vertex (o + d * i, o + d * (j - 1), o, &pos, points); //P1'x
-          points_vertex (o + d * (i - 1), o + d * j, o, &pos, points); //P1'z
-          points_vertex (o + d * i, o + d * j, o, &pos, points); //P2
+          for (int k = 0; k < 6; ++k)
+            normals.emplace_back (-1, 0, 0);
 
-          // back
-          points_vertex (o + d * (i - 1), o + d * j, -o, &pos, points); //P1'z
-          points_vertex (o + d * (i - 1), o + d * (j - 1), -o, &pos, points); //P1
-          points_vertex (o + d * i, o + d * (j - 1), -o, &pos, points); //P1'x
+          for (auto e : {
+              vec2 (-1.0f, -1.0f),
+              vec2 (-1.0f, 0.0f),
+              vec2 (0.0f, -1.0f),
 
-          points_vertex (o + d * (i - 1), o + d * j, -o, &pos, points); //P1'z
-          points_vertex (o + d * i, o + d * (j - 1), -o, &pos, points); //P1'x
-          points_vertex (o + d * i, o + d * j, -o, &pos, points); //P2
+              vec2 (0.0f, -1.0f),
+              vec2 (-1.0f, 0.0f),
+              vec2 (0.0f, 0.0f)})
+            texture.emplace_back ((fdiv1 + e[0]) / fdivisions, (fdiv2 + e[1]) / fdivisions);
+
+
+          // x+
+          vertices.emplace_back (-o, o + d * (fdiv1 - 1), o + d * fdiv2); //P1'z
+          vertices.emplace_back (-o, o + d * (fdiv1 - 1), o + d * (fdiv2 - 1)); //P1
+          vertices.emplace_back (-o, o + d * fdiv1, o + d * (fdiv2 - 1)); //P1'x
+
+          vertices.emplace_back (-o, o + d * (fdiv1 - 1), o + d * fdiv2); //P1'z
+          vertices.emplace_back (-o, o + d * fdiv1, o + d * (fdiv2 - 1)); //P1'x
+          vertices.emplace_back (-o, o + d * fdiv1, o + d * fdiv2); //P2
+
+          for (int k = 0; k < 6; ++k)
+            normals.emplace_back (1, 0, 0);
+
+          for (auto e : {
+              vec2 (-1.0f, 0.0f),
+              vec2 (-1.0f, -1.0f),
+              vec2 (0.0f, -1.0f),
+
+              vec2 (-1.0f, 0.0f),
+              vec2 (0.0f, -1.0f),
+              vec2 (0.0f, 0.0f)})
+            texture.emplace_back ((fdiv1 + e[0]) / fdivisions, (fdiv2 + e[1]) / fdivisions);
+
+
+          // z-
+          vertices.emplace_back (o + d * (fdiv1 - 1), o + d * (fdiv2 - 1), o); //P1
+          vertices.emplace_back (o + d * (fdiv1 - 1), o + d * fdiv2, o); //P1'z
+          vertices.emplace_back (o + d * fdiv1, o + d * (fdiv2 - 1), o); //P1'x
+
+          vertices.emplace_back (o + d * fdiv1, o + d * (fdiv2 - 1), o); //P1'x
+          vertices.emplace_back (o + d * (fdiv1 - 1), o + d * fdiv2, o); //P1'z
+          vertices.emplace_back (o + d * fdiv1, o + d * fdiv2, o); //P2
+
+          for (auto e : {
+              vec2 (-1.0f, -1.0f),//P1
+              vec2 (-1.0f, 0.0f),//P1'z
+              vec2 (0.0f, -1.0f),//P1'x
+
+              vec2 (0.0f, -1.0f),//P1'x
+              vec2 (-1.0f, 0.0f),//P1'z
+              vec2 (0.0f, 0.0f)//P2
+          })
+            {
+              normals.emplace_back (0, 0, -1);
+              texture.emplace_back ((fdiv1 + e[0]) / fdivisions, (fdiv2 + e[1]) / fdivisions);
+            }
+
+
+
+          // z+
+          vertices.emplace_back (o + d * (fdiv1 - 1), o + d * fdiv2, -o); //P1'z
+          vertices.emplace_back (o + d * (fdiv1 - 1), o + d * (fdiv2 - 1), -o); //P1
+          vertices.emplace_back (o + d * fdiv1, o + d * (fdiv2 - 1), -o); //P1'x
+
+          vertices.emplace_back (o + d * (fdiv1 - 1), o + d * fdiv2, -o); //P1'z
+          vertices.emplace_back (o + d * fdiv1, o + d * (fdiv2 - 1), -o); //P1'x
+          vertices.emplace_back (o + d * fdiv1, o + d * fdiv2, -o); //P2
+
+          for (int k = 0; k < 6; ++k)
+            normals.emplace_back (0, 0, 1);
+
+          for (auto e : {
+              vec2 (-1.0f, 0.0f),
+              vec2 (-1.0f, -1.0f),
+              vec2 (0.0f, -1.0f),
+
+              vec2 (-1.0f, 0.0f),
+              vec2 (0.0f, -1.0f),
+              vec2 (0.0f, 0.0f)
+          })
+            texture.emplace_back ((fdiv1 + e[0]) / fdivisions, (fdiv2 + e[1]) / fdivisions);
         }
     }
 }
 
-unsigned int model_cube_nVertices (const unsigned int divisions)
+static inline unsigned int model_cube_nVertices (const unsigned int divisions)
 { return divisions * divisions * 36; }
 
-void model_cube_write (const char *filepath, const float length, const unsigned int divisions)
+void model_cube_write (const char *const filepath,
+                       const float length,
+                       const unsigned int divisions)
 {
   const unsigned int nVertices = model_cube_nVertices (divisions);
-  float points[3 * nVertices];
-  model_cube_vertices (length, divisions, points);
-  points_write (filepath, nVertices, points);
+  vector<vec3> vertices;
+  vertices.reserve (nVertices);
+  vector<vec3> normals;
+  normals.reserve (nVertices);
+  vector<vec2> texture;
+  texture.reserve (nVertices);
+
+  model_cube_vertices (length, divisions, vertices, normals, texture);
+  model_write (filepath, vertices, normals, texture);
 }
 
 //!@} end of group cube
@@ -208,9 +365,15 @@ void model_cube_write (const char *filepath, const float length, const unsigned 
  *
  *  See the [3d model](https://www.math3d.org/7oeSkmuns).
  */
+
+template<typename T>
+    requires arithmetic<T>
 static inline void
-model_cone_vertex (const float r, const float height, const float theta, const float h, unsigned int *pos,
-                   float *points)
+model_cone_vertex (const T r,
+                   const T height,
+                   const T theta,
+                   const T h,
+                   vector<vec3> &vertices)
 {
   /*
      x = r ⋅ (h/height) ⋅ cos(θ)
@@ -219,44 +382,83 @@ model_cone_vertex (const float r, const float height, const float theta, const f
 
      r ≥ 0
      θ ∈ {-π      + i⋅s : s = 2π/slices      ∧ i ∈ {0,...,slices} }
-     h ∈ {-height + j⋅t : t =  height/stacks ∧ j ∈ {0,...,stacks} }
+     h ∈ {-height + j⋅t : t = height/stacks ∧ j ∈ {0,...,stacks} }
 
      check:
          1. https://www.math3d.org/7oeSkmuns
    */
-  points_vertex (r * h / height * cos (theta), height + h, r * h / height * sin (theta), pos, points);
+  vertices.emplace_back (r * h / height * cos (theta), height + h, r * h / height * sin (theta));
 }
 
-void model_cone_vertices (const float r, const float height, const unsigned int slices, const unsigned int stacks,
-                          float points[])
+template<typename T>
+    requires arithmetic<T>
+void model_cone_vertices (const T radius,
+                          const T height,
+                          const unsigned int slices,
+                          const unsigned int stacks,
+                          vector<vec3> &vertices,
+                          vector<vec3> &normals,
+                          vector<vec2> &texture)
 {
 
-  const float s = 2.0f * (float) M_PI / (float) slices;
-  const float t = height / (float) stacks;
-  const float theta = -M_PI;
-  const float h = -height;
+  const T s = 2 * M_PI / (float) slices;
+  const T t = height / (float) stacks;
 
-  unsigned int pos = 0;
+  const T theta_0 = -M_PI;
+  const T h_0 = -height;
 
-  for (unsigned int m = 1; m <= slices; m++)
+  auto const fslices = (float) slices;
+  auto const fstacks = (float) stacks;
+
+  for (unsigned int slice = 1; slice <= slices; ++slice)
     {
-      for (unsigned int n = 1; n <= stacks; n++)
+      for (unsigned int stack = 1; stack <= stacks; ++stack)
         {
-          float i = (float) m;
-          float j = (float) n;
+          auto const fslice = (float) slice;
+          auto const fstack = (float) stack;
 
           //base
-          points_vertex (0, 0, 0, &pos, points); //O
-          model_cone_vertex (r, height, theta + s * (i - 1), h, &pos, points); //P1
-          model_cone_vertex (r, height, theta + s * i, h, &pos, points); //P2
+          vertices.emplace_back (0, 0, 0); //O
+          texture.emplace_back (0, 0);
+          normals.emplace_back (0, -1, 0);
+          for (auto e : {
+              -1.0f,//P1
+              .0f //P2
+          })
+            {
+              model_cone_vertex (radius, height, theta_0 + s * (fslice + e), h_0, vertices); //P1
+              normals.emplace_back (0, -1, 0);
+            }
 
-          model_cone_vertex (r, height, theta + s * i, h + t * (j - 1), &pos, points); // P2
-          model_cone_vertex (r, height, theta + s * (i - 1), h + t * j, &pos, points); // P1'
-          model_cone_vertex (r, height, theta + s * i, h + t * j, &pos, points); //P2'
+          texture.emplace_back (-1, 0);
+          texture.emplace_back (0, 0);
 
-          model_cone_vertex (r, height, theta + s * i, h + t * (j - 1), &pos, points); // P2
-          model_cone_vertex (r, height, theta + s * (i - 1), h + t * (j - 1), &pos, points); // P1
-          model_cone_vertex (r, height, theta + s * (i - 1), h + t * j, &pos, points); // P1'
+          int q = 0;
+          for (auto e : {
+              array<float, 2>{0, -1},
+              array<float, 2>{-1, 0},
+              array<float, 2>{0, 0},
+
+              array<float, 2>{0, -1},
+              array<float, 2>{-1, -1},
+              array<float, 2>{-1, 0},
+          })
+            {
+              model_cone_vertex (radius, height,
+                                 theta_0 + s * (fslice + e[0]),
+                                 h_0 + t * (fstack + e[1]), vertices);
+              if (q % 3 == 2)
+                {
+                  const auto P1 = vertices.end ()[-2];
+                  const auto P2 = vertices.end ()[-3];
+                  const auto P1_prime = vertices.end ()[-1];
+                  for (auto _ = 0; _ < 3; ++_)
+                    normals.emplace_back (normalize (cross (P2 - P1_prime, P1 - P1_prime)));
+                }
+
+              texture.emplace_back (fslice / fslices, fstack / fstacks);
+              ++q;
+            }
         }
     }
 }
@@ -266,13 +468,21 @@ static inline unsigned int model_cone_nVertices (const unsigned int stacks, cons
   return slices * stacks * 9;
 }
 
-void model_cone_write (const char *filepath, const float radius, const float height, const unsigned int slices,
+void model_cone_write (const char *const filepath,
+                       const float radius,
+                       const float height,
+                       const unsigned int slices,
                        const unsigned int stacks)
 {
   const unsigned int nVertices = model_cone_nVertices (stacks, slices);
-  float points[3 * nVertices];
-  model_cone_vertices (radius, height, slices, stacks, points);
-  points_write (filepath, nVertices, points);
+  vector<vec3> vertices;
+  vertices.reserve (nVertices);
+  vector<vec3> normals;
+  normals.reserve (nVertices);
+  vector<vec2> texture;
+  texture.reserve (nVertices);
+  model_cone_vertices (radius, height, slices, stacks, vertices, normals, texture);
+  model_write (filepath, vertices, normals, texture);
 }
 
 //!@} end of group cone
@@ -280,8 +490,17 @@ void model_cone_write (const char *filepath, const float radius, const float hei
 /*! @addtogroup sphere
 * @{*/
 
+static inline unsigned int model_sphere_nVertices (const unsigned int slices, const unsigned int stacks)
+{
+  return slices * stacks * 6;
+}
+
 static inline void
-model_sphere_vertex (const float r, const float theta, const float phi, unsigned int *pos, float *points)
+model_sphere_vertex (const float r,
+                     const float theta,
+                     const float phi,
+                     vector<vec3> &vertices,
+                     vector<vec3> &normals)
 {
   /*
       x = r ⋅ sin(θ)cos(φ)
@@ -296,10 +515,16 @@ model_sphere_vertex (const float r, const float theta, const float phi, unsigned
           1. https://www.math3d.org/EumEEZBKe
           2. https://www.math3d.org/zE4n6xayX
    */
-  points_vertex (r * sin (theta) * cos (phi), r * sin (phi), r * cos (theta) * cos (phi), pos, points);
+  vertices.emplace_back (r * sin (theta) * cos (phi), r * sin (phi), r * cos (theta) * cos (phi));
+  normals.emplace_back (sin (theta) * cos (phi), sin (phi), cos (theta) * cos (phi));
 }
 
-static void model_sphere_vertices (const float r, const unsigned int slices, const unsigned int stacks, float points[])
+static void model_sphere_vertices (const float r,
+                                   const unsigned int slices,
+                                   const unsigned int stacks,
+                                   vector<vec3> &vertices,
+                                   vector<vec3> &normals,
+                                   vector<vec2> &texture)
 {
   // https://www.math3d.org/EumEEZBKe
   // https://www.math3d.org/zE4n6xayX
@@ -309,33 +534,58 @@ static void model_sphere_vertices (const float r, const unsigned int slices, con
   const float theta = -M_PI;
   const float phi = -M_PI / 2.0f;
 
-  unsigned int pos = 0;
+  auto fslices = (float) slices;
+  auto fstacks = (float) stacks;
 
-  for (unsigned int m = 1; m <= slices; m++)
+  for (unsigned int slice = 1; slice <= slices; ++slice)
     {
-      for (unsigned int n = 1; n <= stacks; n++)
+      for (unsigned int stack = 1; stack <= stacks; ++stack)
         {
-          float i = (float) m;
-          float j = (float) n;
+          auto fslice = (float) slice;
+          auto fstack = (float) stack;
 
-          model_sphere_vertex (r, theta + s * (i - 1), phi + t * j, &pos, points); // P1'
-          model_sphere_vertex (r, theta + s * i, phi + t * (j - 1), &pos, points); // P2
-          model_sphere_vertex (r, theta + s * i, phi + t * j, &pos, points); //P2'
+          texture.emplace_back ((fslice - 1) / fslices, fstack / fstacks); // P1'
+          texture.emplace_back (fslice / fslices, (fstack - 1) / fstacks); // P2
+          texture.emplace_back (fslice / fslices, fstack / fstacks); // P2'
 
-          model_sphere_vertex (r, theta + s * (i - 1), phi + t * (j - 1), &pos, points); // P1
-          model_sphere_vertex (r, theta + s * i, phi + t * (j - 1), &pos, points); // P2
-          model_sphere_vertex (r, theta + s * (i - 1), phi + t * j, &pos, points); // P1'
+          texture.emplace_back ((fslice - 1) / fslices, (fstack - 1) / fstacks); // P1
+          texture.emplace_back (fslice / fslices, (fstack - 1) / fstacks); // P2
+          texture.emplace_back ((fslice - 1) / fslices, fstack / fstacks); // P1'
+
+          model_sphere_vertex (r, theta + s * (fslice - 1), phi + t * fstack, vertices, normals); // P1'
+          model_sphere_vertex (r, theta + s * fslice, phi + t * (fstack - 1), vertices, normals); // P2
+          model_sphere_vertex (r, theta + s * fslice, phi + t * fstack, vertices, normals); // P2'
+
+          model_sphere_vertex (r, theta + s * (fslice - 1), phi + t * (fstack - 1), vertices, normals); // P1
+          model_sphere_vertex (r, theta + s * fslice, phi + t * (fstack - 1), vertices, normals); // P2
+          model_sphere_vertex (r, theta + s * (fslice - 1), phi + t * fstack, vertices, normals); // P1'
         }
     }
 }
 
-/*
-*******************************************************************************
-Bezier patches
-*******************************************************************************
-*/
+void model_sphere_write (const char *const filepath,
+                         const float radius,
+                         const unsigned int slices,
+                         const unsigned int stacks)
+{
 
-vector<array<vec3, 16>> read_Bezier (const char *patch)
+  const unsigned int nVertices = model_sphere_nVertices (slices, stacks);
+  vector<vec3> vertices;
+  vertices.reserve (nVertices);
+  vector<vec3> normals;
+  normals.reserve (nVertices);
+  vector<vec2> texture;
+  texture.reserve (nVertices);
+  model_sphere_vertices (radius, slices, stacks, vertices, normals, texture);
+  model_write (filepath, vertices, normals, texture);
+}
+//!@} end of group sphere
+
+//!@} end of group model
+
+/*! @addtogroup bezier
+ * @{ */
+vector<array<vec3, 16>> read_Bezier (const char *const patch)
 {
   string buffer;
   ifstream myFile;
@@ -343,7 +593,7 @@ vector<array<vec3, 16>> read_Bezier (const char *patch)
   myFile.open (patch, ios::in | ios::out);
   getline (myFile, buffer);
   // Número de patches presentes no ficheiro.
-  int n_patches = stoi (buffer);
+  const int n_patches = stoi (buffer);
 
   // Vetor de vetores de índices.
   vector<vector<int>> patches;
@@ -368,7 +618,7 @@ vector<array<vec3, 16>> read_Bezier (const char *patch)
 
   getline (myFile, buffer);
   // Número de pontos presentes no ficheiro.
-  int pts = stoi (buffer);
+  const int pts = stoi (buffer);
 
   // Vetor que guardará as coordenadas de pontos de controlo para superfície de Bézier.
   vector<vec3> control;
@@ -408,67 +658,313 @@ vector<array<vec3, 16>> read_Bezier (const char *patch)
   return pointsInPatches;
 }
 
-void model_bezier_write (int tesselation, const char *in_patch_file, const char *out_3d_file)
+template<typename T> static inline vec4 monic_3rd_polynomial_at (T n)
 {
-  vector<array<glm::vec3, 16>> control_points = read_Bezier (in_patch_file);
-  vector<glm::vec3> vertices = get_bezier_surface (control_points, tesselation);
-  const unsigned int nVertices = vertices.size ();
-  vector<float> coords;
-  for (auto &vertice : vertices)
+  return {pow (n, 3), pow (n, 2), n, 1};
+}
+
+template<typename T> static inline vec4 deriv_of_monic_3rd_polynomial_at (T n)
+{
+  return {3 * pow (n, 2), 2 * n, 1, 0};
+}
+
+mat4x3 mat (const array<vec3, 4> C)
+{
+  return {C[0], C[1], C[2], C[3]};
+}
+
+/*!
+ *
+ * @param[in] u first component of the 2d point.
+ * @param[in] v second component of the 2d point.
+ * @param[in] cp a set of control points that define the bezier patch.
+ * @param[out] coordinate_in_3d_space cartesian three-dimensional coordinate of the
+ *                                    point specified by Beziér patch coordinate.
+ * @param[out] normal vector normal to the patch specified.
+ */
+void get_bezier_point_at (
+    const float u,
+    const float v,
+    const array<vec3, 16> &cp,
+    vec3 &coordinate_in_3d_space,
+    vec3 &normal)
+{
+
+  // P_u notation at (slide 17)[Curves and Surfaces]
+
+  // P(u,v) = UM(Pi0(P0u) + Pi1(P1u) + Pi2(P2u) Pi3(P3u)) based on (page 6)[CURVES AND SURFACES]
+
+  // 4 sets of control points for 4 Bézier curves
+  array<vec3, 4> C_i0 = {cp[0], cp[1], cp[2], cp[3]};
+  array<vec3, 4> C_i1 = {cp[4], cp[5], cp[6], cp[7]};
+  array<vec3, 4> C_i2 = {cp[8], cp[9], cp[10], cp[11]};
+  array<vec3, 4> C_i3 = {cp[12], cp[13], cp[14], cp[15]};
+
+  // calculate P_i(u) at each Bézier curve defined by Ci
+  vec3 P0u, P1u, P2u, P3u, _;
+  get_curve_point_at (u, Mb, C_i0, P0u, _);
+  get_curve_point_at (u, Mb, C_i1, P1u, _);
+  get_curve_point_at (u, Mb, C_i2, P2u, _);
+  get_curve_point_at (u, Mb, C_i3, P3u, _);
+
+  // Calculate vector tangent to u⃗
+  const auto VM = monic_3rd_polynomial_at (v) * Mb;
+  const auto U_prime = deriv_of_monic_3rd_polynomial_at (u);
+  const auto tangent_u =
+      (mat (C_i0) * VM[0] + mat (C_i1) * VM[1] + mat (C_i2) * VM[2] + mat (C_i3) * VM[3]) * Mb * U_prime;
+
+  vec3 Puv, tangent_v;
+  get_curve_point_at (v, Mb, {P0u, P1u, P2u, P3u}, Puv, tangent_v);
+
+  normal = normalize (cross (tangent_u, tangent_v));
+  coordinate_in_3d_space = Puv;
+}
+
+static inline unsigned int model_bezier_patch_nVertices (const unsigned int tesselation)
+{
+  return tesselation * tesselation * 6;
+}
+
+static inline unsigned int model_bezier_surface_nVertices (
+    const unsigned int number_of_patches,
+    const unsigned int tesselation)
+{
+  return model_bezier_patch_nVertices (tesselation) * number_of_patches;
+}
+
+void get_bezier_patch (
+    const array<vec3, 16> control_points,
+    const int int_tesselation,
+    vector<vec3> &vertices,
+    vector<vec3> &normals,
+    vector<vec2> &texture)
+{
+  auto float_tesselation = (float) int_tesselation;
+  const auto step = 1.0 / float_tesselation;
+  for (int v = 0; v < int_tesselation; ++v)
     {
-      coords.push_back (vertice.x);
-      coords.push_back (vertice.y);
-      coords.push_back (vertice.z);
+      for (int u = 0; u < int_tesselation; ++u)
+        {
+          for (auto e : {
+              // upper triangle
+              array<float, 2>{0, 1},
+              array<float, 2>{0, 0},
+              array<float, 2>{1, 0},
+              // lower triangle
+              array<float, 2>{1, 0},
+              array<float, 2>{1, 1},
+              array<float, 2>{0, 1},
+          })
+            {
+              vec3 vertex, normal;
+              get_bezier_point_at (u * step + step * e[0], v * step + step * e[1], control_points, vertex, normal);
+
+              auto fu = (float) u;
+              auto fv = (float) v;
+              vertices.push_back (vertex);
+              normals.push_back (normal);
+              texture.emplace_back (-(u * step + step * e[0]), -(v * step + step * e[1]));
+            }
+
+          //          // upper triangle
+          //          vertices.push_back (get_bezier_point_at (u * step, v * step, control_points));
+          //          vertices.push_back (get_bezier_point_at (u * step, v * step + step, control_points));
+          //          vertices.push_back (get_bezier_point_at (u * step + step, v * step, control_points));
+          //          // lower triangle
+          //          vertices.push_back (get_bezier_point_at (u * step + step, v * step, control_points));
+          //          vertices.push_back (get_bezier_point_at (u * step + step, v * step + step, control_points));
+          //          vertices.push_back (get_bezier_point_at (u * step, v * step + step, control_points));
+        }
     }
-  points_write (out_3d_file, nVertices, coords.data ());
+  /*std::cout << "get_bezier_patch got:" << std::endl;
+  for (auto p : pontos)
+    std::cout << glm::to_string (p) << std::endl;*/
 }
 
-/*
-*******************************************************************************
-End of Bezier patches
-*******************************************************************************
-*/
-
-
-static inline unsigned int model_sphere_nVertices (const unsigned int slices, const unsigned int stacks)
+/*!
+ *
+ * @param control_elements 4 vertices define a bezier curve and 4 bezier curves define a bezier patch.
+ *                         A set of bezier patches define a bezier surface.
+ *                         Therefore, each control element of a bezier surface requires 16 vertices.
+ */
+void get_bezier_surface (
+    const vector<array<vec3, 16>> &control_elements,
+    const int tesselation,
+    vector<vec3> &vertices,
+    vector<vec3> &normals,
+    vector<vec2> &texture)
 {
-  return slices * stacks * 6;
+
+  for (auto &control_element : control_elements)
+    get_bezier_patch (control_element, tesselation, vertices, normals, texture);
 }
 
-void model_sphere_write (const char *filepath, float radius, unsigned int slices, unsigned int stacks)
+void model_bezier_write (
+    const int tesselation,
+    const char *const in_patch_file,
+    const char *const out_3d_file)
 {
-  const unsigned int nVertices = model_sphere_nVertices (slices, stacks);
-  float points[3 * nVertices];
-  model_sphere_vertices (radius, slices, stacks, points);
-  points_write (filepath, nVertices, points);
-}
-//!@} end of group sphere
+  vector<array<vec3, 16>> control_points = read_Bezier (in_patch_file);
 
-//!@} end of group model
+  const unsigned int nVertices = model_bezier_surface_nVertices (control_points.size (), tesselation);
+  vector<vec3> vertices;
+  vertices.reserve (nVertices);
+  vector<vec3> normals;
+  normals.reserve (nVertices);
+  vector<vec2> texture;
+  texture.reserve (nVertices);
+
+  get_bezier_surface (control_points, tesselation, vertices, normals, texture);
+  if (nVertices != vertices.size ())
+    {
+      cerr << nVertices << " = nVertices != vertices.size () = " << vertices.size () << endl;
+      exit (EXIT_FAILURE);
+    }
+  //assert (nVertices == vertices.size ());
+
+  model_write (out_3d_file, vertices, normals, texture);
+}
+//!@} end of group bezier
 
 //!@} end of group generator
 
-int main (int argc, char *argv[])
+/*!
+ * ⟨command⟩ ::= (⟨plane⟩ | ⟨cube⟩ | ⟨sphere⟩ | ⟨cone⟩ | ⟨patch⟩) ⟨out_file⟩
+ * ⟨patch⟩ ::= "bezier" ⟨patch_file⟩ ⟨tesselation⟩
+ * ⟨plane⟩ ::= "plane" ⟨length⟩ ⟨divisions⟩
+ * ⟨cube⟩ ::= "box" ⟨length⟩ ⟨divisions⟩
+ * ⟨cone⟩ ::= "cone" ⟨base_radius⟩ ⟨height⟩ ⟨slices⟩ ⟨stacks⟩
+ * ⟨sphere⟩ ::= "sphere" ⟨radius⟩ ⟨slices⟩ ⟨stacks⟩
+ */
+int main (const int argc, const char *const argv[])
 {
   if (argc < 4)
     {
-      printf ("Not enough arguments");
+      cerr << "[generator] Not enough arguments" << endl;
+      exit (EXIT_FAILURE);
     }
   else
     {
-      const char *out_file_path = argv[argc - 1];
-      const char *polygon = argv[1];
+      const char *const out_file_path = argv[argc - 1];
+      cerr << "[generator] output filepath: '" << out_file_path << "'" << endl;
+      const char *const polygon = argv[1];
+      cerr << "[generator] polygon to generate: " << polygon << endl;
 
       if (!strcmp (PLANE, polygon))
-        model_plane_write (out_file_path, strtof (argv[2], nullptr), strtoul (argv[3], nullptr, 10));
-      if (!strcmp (CUBE, polygon))
-        model_cube_write (out_file_path, atof (argv[2]), strtoul (argv[3], nullptr, 10));
-      if (!strcmp (CONE, polygon))
-        model_cone_write (out_file_path, atof (argv[2]), atof (argv[3]), atoi (argv[4]), atoi (argv[5]));
-      if (!strcmp (SPHERE, polygon))
-        model_sphere_write (out_file_path, atof (argv[2]), atoi (argv[3]), atoi (argv[4]));
-      if (!strcmp (BEZIER, polygon))
-        model_bezier_write (atoi (argv[2]), argv[3], out_file_path);
+        {
+          const float length = strtof (argv[2], nullptr);
+          if (length <= 0.0)
+            {
+              cerr << "[generator] invalid length(" << length << ") for plane" << endl;
+              exit (EXIT_FAILURE);
+            }
+          const int divisions = std::stoi (argv[3], nullptr, 10);
+          if (divisions <= 0)
+            {
+              cerr << "[generator] invalid number of divisions(" << divisions << ") for plane" << endl;
+              exit (EXIT_FAILURE);
+            }
+          cerr << "[generator] PLANE(length: " << length << ", divisions: " << divisions << ")" << endl;
+          model_plane_write (out_file_path, length, divisions);
+        }
+
+      else if (!strcmp (CUBE, polygon))
+        {
+          const float length = strtof (argv[2], nullptr);
+          if (length <= 0.0)
+            {
+              cerr << "[generator] invalid length(" << length << ") for cube" << endl;
+              exit (EXIT_FAILURE);
+            }
+          const int divisions = std::stoi (argv[3], nullptr, 10);
+          if (divisions <= 0)
+            {
+              cerr << "[generator] invalid number of divisions(" << divisions << ") for cube" << endl;
+              exit (EXIT_FAILURE);
+            }
+          cerr << "[generator] CUBE(length: " << length << ", divisions: " << divisions << ")" << endl;
+          model_cube_write (out_file_path, length, divisions);
+        }
+      else if (!strcmp (CONE, polygon))
+        {
+          const float radius = strtof (argv[2], nullptr);
+          if (radius <= 0.0)
+            {
+              cerr << "[generator] invalid radius(" << radius << ") for cone" << endl;
+              exit (EXIT_FAILURE);
+            }
+          const float height = strtof (argv[3], nullptr);
+          if (height <= 0.0)
+            {
+              cerr << "[generator] invalid height(" << radius << ") for cone" << endl;
+              exit (EXIT_FAILURE);
+            }
+          const int slices = std::stoi (argv[4], nullptr, 10);
+          if (slices <= 0)
+            {
+              cerr << "[generator] invalid slices(" << slices << ") for cone" << endl;
+              exit (EXIT_FAILURE);
+            }
+          const int stacks = std::stoi (argv[5], nullptr, 10);
+          if (stacks <= 0)
+            {
+              cerr << "[generator] invalid stacks(" << stacks << ") for cone" << endl;
+              exit (EXIT_FAILURE);
+            }
+          cerr << "[generator] CONE(radius: " << radius
+               << ", height: " << height
+               << ", slices: " << slices
+               << ", stacks: " << stacks << ")" << endl;
+          model_cone_write (out_file_path, radius, height, slices, stacks);
+        }
+      else if (!strcmp (SPHERE, polygon))
+        {
+          const float radius = strtof (argv[2], nullptr);
+          if (radius <= 0.0)
+            {
+              cerr << "[generator] invalid radius(" << radius << ") for sphere" << endl;
+              exit (EXIT_FAILURE);
+            }
+          const int slices = std::stoi (argv[3], nullptr, 10);
+          if (slices <= 0)
+            {
+              cerr << "[generator] invalid slices(" << slices << ") for sphere" << endl;
+              exit (EXIT_FAILURE);
+            }
+          const int stacks = std::stoi (argv[4], nullptr, 10);
+          if (stacks <= 0)
+            {
+              cerr << "[generator] invalid stacks(" << stacks << ") for sphere" << endl;
+              exit (EXIT_FAILURE);
+            }
+          cerr << "[generator] SPHERE(radius: " << radius
+               << ", slices: " << slices
+               << ", stacks: " << stacks << ")"
+               << endl;
+          model_sphere_write (out_file_path, radius, slices, stacks);
+        }
+      else if (!strcmp (BEZIER, polygon))
+        {
+          const int tesselation = std::stoi (argv[3], nullptr, 10);
+          if (tesselation <= 0)
+            {
+              cerr << "[generator] invalid tesselation(" << tesselation << ") for bezier patch" << endl;
+              exit (EXIT_FAILURE);
+            }
+          const char *const input_patch_file_path = argv[2];
+          if (access (input_patch_file_path, F_OK))
+            {
+              cerr << "[generator] file " << input_patch_file_path << " for bezier patch not found" << endl;
+              exit (EXIT_FAILURE);
+            }
+          cerr << "BEZIER(tesselation: " << tesselation << ", input file: " << input_patch_file_path << ")" << endl;
+          model_bezier_write (tesselation, input_patch_file_path, out_file_path);
+        }
+      else
+        {
+          cerr << "[generator] Unkown object type: " << polygon << endl;
+          exit (EXIT_FAILURE);
+        }
     }
   return 0;
 }
